@@ -96,6 +96,7 @@ export type SuperusersRecord = {
 }
 
 export enum ClassLogsStatusOptions {
+	"CREATED" = "CREATED",
 	"STARTED" = "STARTED",
 	"FINISHED" = "FINISHED",
 }
@@ -106,7 +107,7 @@ export type ClassLogsRecord = {
 	finishedAt?: IsoDateString
 	id: string
 	startedAt?: IsoDateString
-	status?: ClassLogsStatusOptions
+	status: ClassLogsStatusOptions
 	studentId: RecordIdString
 	studentsPrice?: number
 	teacherId: RecordIdString
@@ -135,16 +136,17 @@ export type NoticesRecord = {
 
 export type RoutinesRecord = {
 	created?: IsoDateString
+	endDate: string
 	friTime?: string
 	id: string
 	monTime?: string
 	satTime?: string
+	startDate: string
 	sunTIme?: string
 	teacherStudentRelId: RecordIdString
 	thuTime?: string
 	tueTime?: string
 	updated?: IsoDateString
-	utcOffset: string
 	wedTime?: string
 }
 
