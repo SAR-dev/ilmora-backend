@@ -36,7 +36,17 @@ routerAdd("GET", "/api/t/students", (c) => {
         id: '',
         name: '',
         packageName: '',
-        packageClassMins: ''
+        packageClassMins: '',
+        utcOffset: '',
+        satTime: '',
+        sunTime: '',
+        monTime: '',
+        tueTime: '',
+        wedTime: '',
+        thuTime: '',
+        friTime: '',
+        startDate: '',
+        endDate: ''
     }))
 
     $app.db()
@@ -44,14 +54,25 @@ routerAdd("GET", "/api/t/students", (c) => {
             SELECT 
                 s.id ,
                 us.name ,
-                dcp.title AS packageName,
-                dcp.classMins AS packageClassMins
+                dcp.title AS packageName ,
+                dcp.classMins AS packageClassMins ,
+                COALESCE (r.utcOffset, '') AS utcOffset ,
+                COALESCE (r.satTime, '') AS satTime ,
+                COALESCE (r.sunTime, '') AS sunTime ,
+                COALESCE (r.monTime, '') AS monTime ,
+                COALESCE (r.tueTime, '') AS tueTime ,
+                COALESCE (r.wedTime, '') AS wedTime ,
+                COALESCE (r.thuTime, '') AS thuTime ,
+                COALESCE (r.friTime, '') AS friTime ,
+                COALESCE (r.startDate, '') AS startDate ,
+                COALESCE (r.endDate, '') AS endDate 
             FROM users u 
             JOIN teachers t ON t.userId = u.id
             JOIN teacherStudentRel tsr ON tsr.teacherId = t.id 
             JOIN students s ON tsr.studentId = s.id 
             JOIN users us ON us.id = s.userId 
             JOIN dailyClassPackages dcp ON tsr.dailyClassPackageId = dcp.id 
+            LEFT JOIN routines r ON r.teacherStudentRelId = tsr.id
             WHERE u.id = {:userId}
         `)
         .bind({
@@ -60,4 +81,171 @@ routerAdd("GET", "/api/t/students", (c) => {
         .all(studentsInfo)
 
     return c.json(200, studentsInfo)
+})
+
+routerAdd("POST", "/api/t/routine", (c) => {
+    const userId = c.requestInfo().auth?.id
+    if (!userId) throw ForbiddenError()
+
+    const { studentId, utcOffset, startDate, endDate, satTime, sunTime, monTime, tueTime, wedTime, thuTime, friTime } = c.requestInfo().body
+
+    const data = new DynamicModel({
+        teacherStudentRelId: '',
+        dailyClassPackageId: '',
+        routineId: '',
+        teacherId: ''
+    })
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                tsr.id AS teacherStudentRelId,
+                tsr.dailyClassPackageId,
+                COALESCE (r.id, '') AS routineId,
+                t.id AS teacherId
+            FROM users u 
+            JOIN teachers t ON t.userId = u.id
+            JOIN teacherStudentRel tsr ON tsr.teacherId = t.id 
+            JOIN students s ON tsr.studentId = s.id 
+            LEFT JOIN routines r ON r.teacherStudentRelId = tsr.id
+            WHERE u.id = {:teacherUserId}
+            AND s.id = {:studentId}
+        `)
+        .bind({
+            teacherUserId: userId,
+            studentId
+        })
+        .one(data)
+
+    const { teacherStudentRelId, routineId, teacherId, dailyClassPackageId } = data
+
+
+    const getClassTimes = () => {
+        const result = [];
+
+        // routine start date
+        const start = new Date(startDate);
+
+        // routine end date
+        const end = new Date(endDate);
+
+        // local timezone offset
+        const localOffsetMinutes = start.getTimezoneOffset();
+
+        const offsetSign = utcOffset.startsWith("+") ? -1 : 1;
+        const [hours, minutes] = utcOffset.slice(1).split(":").map(Number);
+
+        // payload timezone offset
+        const payloadOffsetMinutes = offsetSign * (hours * 60 + minutes)
+
+        // overall timezone offset
+        const totalOffsetMinutes = payloadOffsetMinutes - localOffsetMinutes;
+
+        // create weekdays data
+        const weekdays = []
+        if (sunTime.trim().length > 0) weekdays.push({
+            dayOfWeek: 0,
+            hh: Number(sunTime.split(":")[0]),
+            mm: Number(sunTime.split(":")[1])
+        })
+        if (monTime.trim().length > 0) weekdays.push({
+            dayOfWeek: 1,
+            hh: Number(monTime.split(":")[0]),
+            mm: Number(monTime.split(":")[1])
+        })
+        if (tueTime.trim().length > 0) weekdays.push({
+            dayOfWeek: 2,
+            hh: Number(tueTime.split(":")[0]),
+            mm: Number(tueTime.split(":")[1])
+        })
+        if (wedTime.trim().length > 0) weekdays.push({
+            dayOfWeek: 3,
+            hh: Number(wedTime.split(":")[0]),
+            mm: Number(wedTime.split(":")[1])
+        })
+        if (thuTime.trim().length > 0) weekdays.push({
+            dayOfWeek: 4,
+            hh: Number(thuTime.split(":")[0]),
+            mm: Number(thuTime.split(":")[1])
+        })
+        if (friTime.trim().length > 0) weekdays.push({
+            dayOfWeek: 5,
+            hh: Number(friTime.split(":")[0]),
+            mm: Number(friTime.split(":")[1])
+        })
+        if (satTime.trim().length > 0) weekdays.push({
+            dayOfWeek: 6,
+            hh: Number(satTime.split(":")[0]),
+            mm: Number(satTime.split(":")[1])
+        })
+
+        while (start <= end) {
+            const dayOfWeek = start.getUTCDay(); // Sunday = 0, Monday = 1, ..., Saturday = 6
+            const foundIndex = weekdays.findIndex(e => e.dayOfWeek == dayOfWeek)
+            if (foundIndex != -1) {
+                const adjustedDate = new Date(start);
+                adjustedDate.setMinutes(weekdays[foundIndex].hh * 60 + weekdays[foundIndex].mm + totalOffsetMinutes);
+                result.push(adjustedDate.toISOString());
+            }
+            start.setUTCDate(start.getUTCDate() + 1);
+        }
+        return result;
+    }
+
+    $app.runInTransaction((txDao) => {
+        // create routine
+        let routineRecord;
+        if (routineId.length == 0) {
+            const routineCollection = txDao.findCollectionByNameOrId("routines")
+            routineRecord = new Record(routineCollection)
+        } else {
+            routineRecord = txDao.findRecordById("routines", routineId)
+        }
+        routineRecord.set("teacherStudentRelId", teacherStudentRelId)
+        routineRecord.set("satTime", satTime)
+        routineRecord.set("sunTime", sunTime)
+        routineRecord.set("monTime", monTime)
+        routineRecord.set("tueTime", tueTime)
+        routineRecord.set("wedTime", wedTime)
+        routineRecord.set("thuTime", thuTime)
+        routineRecord.set("friTime", friTime)
+        routineRecord.set("startDate", startDate)
+        routineRecord.set("endDate", endDate)
+        routineRecord.set("utcOffset", utcOffset)
+        txDao.save(routineRecord)
+        
+        // routine start date
+        const startDateAsString = new Date(startDate).toISOString().replace("T", " ");
+        
+        // delete incomplete class logs after start date
+        txDao.db()
+            .newQuery(`
+                DELETE FROM classLogs
+                WHERE startedAt < {:minDate}
+                AND teacherId = {:teacherId}
+                AND studentId = {:studentId}
+                AND status = 'CREATED'
+            `)
+            .bind({
+                minDate: startDateAsString,
+                teacherId,
+                studentId
+            })
+            .execute()
+
+        // create class logs by date
+        const classLogCollection = txDao.findCollectionByNameOrId("classLogs")
+        const classTimes = getClassTimes()
+        classTimes.forEach(startedAt => {
+            const record = new Record(classLogCollection)
+            record.set("teacherId", teacherId)
+            record.set("studentId", studentId)
+            record.set("dailyClassPackageId", dailyClassPackageId)
+            record.set("status", "CREATED")
+            // teachersPrice will be set when completed
+            // studentsPrice will be set when completed
+            record.set("startedAt", startedAt)
+            txDao.save(record)
+        })
+    })
 })
