@@ -89,6 +89,28 @@ routerAdd("POST", "/api/t/routine", (c) => {
 
     const { studentId, utcOffset, startDate, endDate, satTime, sunTime, monTime, tueTime, wedTime, thuTime, friTime } = c.requestInfo().body
 
+    // match utc offset using regex
+    const utcOffsetRegex = new RegExp('^[+-](0[0-9]|1[0-4]):[0-5][0-9]$');
+    if (!utcOffsetRegex.test(utcOffset)) throw ForbiddenError()
+
+    // match times using regex
+    const times = [satTime, sunTime, monTime, tueTime, wedTime, thuTime, friTime].filter(e => e.trim().length > 0)
+    const timeRegex = new RegExp('^([01][0-9]|2[0-3]):([0-5][0-9])$')
+    times.forEach(e => {
+        if (!timeRegex.test(e)) throw ForbiddenError()
+    })
+
+    // confirm start date is not in past
+    const todayDate = new Date()
+    if (todayDate > new Date(startDate)) throw ForbiddenError()
+
+    // confirm end date is later than start date
+    if (new Date(endDate) < new Date(startDate)) throw ForbiddenError()
+
+    // confirm that date range is max 1 year
+    const noOfDaysDiff = Math.ceil((Math.abs(new Date(endDate) - new Date(startDate))) / (1000 * 60 * 60 * 24))
+    if (noOfDaysDiff > 365) throw ForbiddenError()
+
     const data = new DynamicModel({
         teacherStudentRelId: '',
         dailyClassPackageId: '',
@@ -185,7 +207,7 @@ routerAdd("POST", "/api/t/routine", (c) => {
             if (foundIndex != -1) {
                 const adjustedDate = new Date(start);
                 adjustedDate.setMinutes(weekdays[foundIndex].hh * 60 + weekdays[foundIndex].mm + totalOffsetMinutes);
-                result.push(adjustedDate.toISOString());
+                result.push(adjustedDate.toISOString().replace("T", " "));
             }
             start.setUTCDate(start.getUTCDate() + 1);
         }
@@ -213,21 +235,16 @@ routerAdd("POST", "/api/t/routine", (c) => {
         routineRecord.set("endDate", endDate)
         routineRecord.set("utcOffset", utcOffset)
         txDao.save(routineRecord)
-        
-        // routine start date
-        const startDateAsString = new Date(startDate).toISOString().replace("T", " ");
-        
-        // delete incomplete class logs after start date
+
+        // delete incomplete class logs
         txDao.db()
             .newQuery(`
                 DELETE FROM classLogs
-                WHERE startedAt < {:minDate}
-                AND teacherId = {:teacherId}
+                WHERE teacherId = {:teacherId}
                 AND studentId = {:studentId}
                 AND status = 'CREATED'
             `)
             .bind({
-                minDate: startDateAsString,
                 teacherId,
                 studentId
             })
@@ -248,4 +265,176 @@ routerAdd("POST", "/api/t/routine", (c) => {
             txDao.save(record)
         })
     })
+})
+
+routerAdd("POST", "/api/t/classLogs/day", (c) => {
+    const userId = c.requestInfo().auth?.id
+    if (!userId) throw ForbiddenError()
+
+    const { utcOffset, date, studentId } = c.requestInfo().body
+
+    // utcOffset pattern check
+    const utcOffsetRegex = new RegExp('^[+-](0[0-9]|1[0-4]):[0-5][0-9]$');
+    if (!utcOffsetRegex.test(utcOffset)) throw ForbiddenError()
+
+    const getUTCStartEndOfDay = () => {
+        // local timezone offset
+        const localOffsetMinutes = (new Date()).getTimezoneOffset();
+
+        const offsetSign = utcOffset.startsWith("+") ? -1 : 1;
+        const [hours, minutes] = utcOffset.slice(1).split(":").map(Number);
+
+        // payload timezone offset
+        const payloadOffsetMinutes = offsetSign * (hours * 60 + minutes)
+
+        // overall timezone offset
+        const totalOffsetMinutes = payloadOffsetMinutes - localOffsetMinutes;
+
+        const localDate = new Date(date);
+        localDate.setHours(0, 0, 0, 0);
+
+        const startOfDay = new Date(localDate.getTime() - totalOffsetMinutes);
+        const endOfDay = new Date(startOfDay.getTime() + 86400000 - 1);
+
+        return {
+            minStartedAt: startOfDay.toISOString().replace("T", " "),
+            maxStartedAt: endOfDay.toISOString().replace("T", " ")
+        };
+    }
+
+    const { minStartedAt, maxStartedAt } = getUTCStartEndOfDay()
+
+    const classLogsInfo = arrayOf(new DynamicModel({
+        id: '',
+        startedAt: '',
+        finishedAt: '',
+        status: '',
+        studentName: '',
+        studentCountry: '',
+        teachersPrice: '',
+        classMins: '',
+        classNote: ''
+    }))
+
+    const filter = studentId?.length > 0 ? `AND (s.id = '${studentId}')` : ""
+
+    $app.db()
+        .newQuery(`
+            SELECT DISTINCT
+                cl.id ,
+                cl.startedAt ,
+                cl.finishedAt ,
+                cl.status ,
+                su.name AS studentName ,
+                su.country AS studentCountry ,
+                dcp.teachersPrice ,
+                dcp.classMins ,
+                cl.classNote 
+            FROM classLogs cl 
+            JOIN teachers t ON cl.teacherId = t.id 
+            JOIN users tu ON tu.id = t.userId 
+            JOIN students s ON cl.studentId = s.id 
+            JOIN users su ON su.id = s.userId 
+            JOIN dailyClassPackages dcp ON dcp.id = cl.dailyClassPackageId
+            WHERE tu.id = {:userId}
+            AND cl.startedAt BETWEEN {:minStartedAt} AND {:maxStartedAt}
+            ${filter}
+        `)
+        .bind({
+            userId,
+            minStartedAt,
+            maxStartedAt
+        })
+        .all(classLogsInfo)
+
+    return c.json(200, classLogsInfo)
+})
+
+routerAdd("POST", "/api/t/classLogs/month", (c) => {
+    const userId = c.requestInfo().auth?.id
+    if (!userId) throw ForbiddenError()
+
+    const { utcOffset, year, month, studentId } = c.requestInfo().body
+
+    // utcOffset pattern check
+    const utcOffsetRegex = new RegExp('^[+-](0[0-9]|1[0-4]):[0-5][0-9]$');
+    if (!utcOffsetRegex.test(utcOffset)) throw ForbiddenError()
+
+    // check year and month
+    if(Number(year) <= 2000 || Number(month) <= 0 || Number(month) > 12) throw ForbiddenError()
+
+    const getUTCStartEndOfMonth = () => {
+        // local timezone offset
+        const localOffsetMinutes = (new Date()).getTimezoneOffset();
+
+        const offsetSign = utcOffset.startsWith("+") ? -1 : 1;
+        const [hours, minutes] = utcOffset.slice(1).split(":").map(Number);
+
+        // payload timezone offset
+        const payloadOffsetMinutes = offsetSign * (hours * 60 + minutes)
+
+        // overall timezone offset
+        const totalOffsetMinutes = payloadOffsetMinutes - localOffsetMinutes;
+
+        const startDate = new Date(Number(year), Number(month), 1);
+        startDate.setHours(0, 0, 0, 0);
+
+        const endDate = new Date(Number(year), Number(month) + 1, 0);
+        endDate.setHours(23, 59, 59, 999);
+
+        const startOfDay = new Date(startDate.getTime() - totalOffsetMinutes);
+        const endOfDay = new Date(startOfDay.getTime() - totalOffsetMinutes);
+
+        return {
+            minStartedAt: startOfDay.toISOString().replace("T", " "),
+            maxStartedAt: endOfDay.toISOString().replace("T", " ")
+        };
+    }
+
+    const { minStartedAt, maxStartedAt } = getUTCStartEndOfMonth()
+
+    const classLogsInfo = arrayOf(new DynamicModel({
+        id: '',
+        startedAt: '',
+        finishedAt: '',
+        status: '',
+        studentName: '',
+        studentCountry: '',
+        teachersPrice: '',
+        classMins: '',
+        classNote: ''
+    }))
+
+    const filter = studentId?.length > 0 ? `AND (s.id = '${studentId}')` : ""
+
+    $app.db()
+        .newQuery(`
+            SELECT DISTINCT
+                cl.id ,
+                cl.startedAt ,
+                cl.finishedAt ,
+                cl.status ,
+                su.name AS studentName ,
+                su.country AS studentCountry ,
+                dcp.teachersPrice ,
+                dcp.classMins ,
+                cl.classNote 
+            FROM classLogs cl 
+            JOIN teachers t ON cl.teacherId = t.id 
+            JOIN users tu ON tu.id = t.userId 
+            JOIN students s ON cl.studentId = s.id 
+            JOIN users su ON su.id = s.userId 
+            JOIN dailyClassPackages dcp ON dcp.id = cl.dailyClassPackageId
+            WHERE tu.id = {:userId}
+            AND cl.startedAt BETWEEN {:minStartedAt} AND {:maxStartedAt}
+            ${filter}
+        `)
+        .bind({
+            userId,
+            minStartedAt,
+            maxStartedAt
+        })
+        .all(classLogsInfo)
+
+    return c.json(200, classLogsInfo)
 })
