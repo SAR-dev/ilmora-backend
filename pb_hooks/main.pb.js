@@ -27,3 +27,37 @@ routerAdd("GET", "/api/self", (c) => {
         isStudent: userInfo.isStudent == 1,
     })
 })
+
+routerAdd("GET", "/api/t/students", (c) => {
+    const userId = c.requestInfo().auth?.id
+    if (!userId) throw ForbiddenError()
+
+    const studentsInfo = arrayOf(new DynamicModel({
+        id: '',
+        name: '',
+        packageName: '',
+        packageClassMins: ''
+    }))
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                s.id ,
+                us.name ,
+                dcp.title AS packageName,
+                dcp.classMins AS packageClassMins
+            FROM users u 
+            JOIN teachers t ON t.userId = u.id
+            JOIN teacherStudentRel tsr ON tsr.teacherId = t.id 
+            JOIN students s ON tsr.studentId = s.id 
+            JOIN users us ON us.id = s.userId 
+            JOIN dailyClassPackages dcp ON tsr.dailyClassPackageId = dcp.id 
+            WHERE u.id = {:userId}
+        `)
+        .bind({
+            userId
+        })
+        .all(studentsInfo)
+
+    return c.json(200, studentsInfo)
+})
