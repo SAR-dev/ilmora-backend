@@ -311,6 +311,8 @@ routerAdd("POST", "/api/t/classLogs/day", (c) => {
         status: '',
         studentName: '',
         studentCountry: '',
+        studentUserId: '',
+        studentUserAvatar: '',
         teachersPrice: '',
         classMins: '',
         classNote: ''
@@ -327,6 +329,8 @@ routerAdd("POST", "/api/t/classLogs/day", (c) => {
                 cl.status ,
                 su.name AS studentName ,
                 su.country AS studentCountry ,
+                su.id AS studentUserId ,
+                COALESCE (su.avatar, '') AS studentUserAvatar ,
                 dcp.teachersPrice ,
                 dcp.classMins ,
                 cl.classNote 
