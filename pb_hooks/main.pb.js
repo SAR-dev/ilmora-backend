@@ -365,7 +365,7 @@ routerAdd("POST", "/api/t/classLogs/month", (c) => {
     if (!utcOffsetRegex.test(utcOffset)) throw ForbiddenError()
 
     // check year and month
-    if(Number(year) <= 2000 || Number(month) <= 0 || Number(month) > 12) throw ForbiddenError()
+    if(Number(year) <= 2000 || Number(month) < 0 || Number(month) > 11) throw ForbiddenError()
 
     const getUTCStartEndOfMonth = () => {
         // local timezone offset
@@ -387,7 +387,7 @@ routerAdd("POST", "/api/t/classLogs/month", (c) => {
         endDate.setHours(23, 59, 59, 999);
 
         const startOfDay = new Date(startDate.getTime() - totalOffsetMinutes);
-        const endOfDay = new Date(startOfDay.getTime() - totalOffsetMinutes);
+        const endOfDay = new Date(endDate.getTime() - totalOffsetMinutes);
 
         return {
             minStartedAt: startOfDay.toISOString().replace("T", " "),
