@@ -267,7 +267,101 @@ routerAdd("POST", "/api/t/routine", (c) => {
     })
 })
 
-routerAdd("POST", "/api/t/classLogs/day", (c) => {
+routerAdd("POST", "/api/t/class-logs", (c) => {
+    const userId = c.requestInfo().auth?.id
+    if (!userId) throw ForbiddenError()
+
+    const { studentId, utcOffset, logs } = c.requestInfo().body
+
+    // match utc offset using regex
+    const utcOffsetRegex = new RegExp('^[+-](0[0-9]|1[0-4]):[0-5][0-9]$');
+    if (!utcOffsetRegex.test(utcOffset)) throw ForbiddenError()
+
+    // match times using regex
+    const times = logs.map(e => e.time.trim())
+    const timeRegex = new RegExp('^([01][0-9]|2[0-3]):([0-5][0-9])$')
+    times.forEach(e => {
+        if (!timeRegex.test(e)) throw ForbiddenError()
+    })
+
+    // confirm date is not in past
+    const todayDate = new Date()
+    const dates = logs.map(e => e.date.trim())
+    dates.forEach(e => {
+        if (todayDate > new Date(e)) throw ForbiddenError()
+    })
+
+    const data = new DynamicModel({
+        dailyClassPackageId: '',
+        teacherId: ''
+    })
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                tsr.dailyClassPackageId,
+                t.id AS teacherId
+            FROM users u 
+            JOIN teachers t ON t.userId = u.id
+            JOIN teacherStudentRel tsr ON tsr.teacherId = t.id 
+            JOIN students s ON tsr.studentId = s.id 
+            WHERE u.id = {:teacherUserId}
+            AND s.id = {:studentId}
+        `)
+        .bind({
+            teacherUserId: userId,
+            studentId
+        })
+        .one(data)
+
+    const { teacherId, dailyClassPackageId } = data
+
+
+    const getClassTimes = () => {
+        const result = [];
+
+        const start = new Date()
+
+        // local timezone offset
+        const localOffsetMinutes = start.getTimezoneOffset();
+
+        const offsetSign = utcOffset.startsWith("+") ? -1 : 1;
+        const [hours, minutes] = utcOffset.slice(1).split(":").map(Number);
+
+        // payload timezone offset
+        const payloadOffsetMinutes = offsetSign * (hours * 60 + minutes)
+
+        // overall timezone offset
+        const totalOffsetMinutes = payloadOffsetMinutes - localOffsetMinutes;
+
+        logs.forEach(log => {
+            const adjustedDate = new Date(log.date)
+            adjustedDate.setMinutes(Number(log.time.split(":")[0]) * 60 + Number(log.time.split(":")[1]) + totalOffsetMinutes);
+            result.push(adjustedDate.toISOString().replace("T", " "));
+        })
+
+        return result;
+    }
+
+    $app.runInTransaction((txDao) => {
+        // create class logs by date
+        const classLogCollection = txDao.findCollectionByNameOrId("classLogs")
+        const classTimes = getClassTimes()
+        classTimes.forEach(startedAt => {
+            const record = new Record(classLogCollection)
+            record.set("teacherId", teacherId)
+            record.set("studentId", studentId)
+            record.set("dailyClassPackageId", dailyClassPackageId)
+            record.set("status", "CREATED")
+            // teachersPrice will be set when completed
+            // studentsPrice will be set when completed
+            record.set("startedAt", startedAt)
+            txDao.save(record)
+        })
+    })
+})
+
+routerAdd("POST", "/api/t/classes/day", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
 
@@ -354,7 +448,7 @@ routerAdd("POST", "/api/t/classLogs/day", (c) => {
     return c.json(200, classLogsInfo)
 })
 
-routerAdd("POST", "/api/t/classLogs/month", (c) => {
+routerAdd("POST", "/api/t/classes/month", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
 
