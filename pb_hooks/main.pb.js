@@ -1,3 +1,19 @@
+// remove mismatched / expired class logs every minute every 1 minute
+cronAdd("remove-expired-teacher-student-class-logs", "*/1 * * * *", () => {
+    $app.db()
+        .newQuery(`
+            DELETE FROM classLogs 
+            WHERE status = 'CREATED' 
+            AND EXISTS (
+                SELECT 1 FROM teacherStudentRel tsr 
+                WHERE tsr.studentId = classLogs.studentId 
+                AND tsr.teacherId != classLogs.teacherId
+            )
+        `)
+        .execute()
+    console.log("Class logs cleaned 🙏")
+})
+
 routerAdd("GET", "/api/self", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
@@ -28,6 +44,7 @@ routerAdd("GET", "/api/self", (c) => {
     })
 })
 
+// it need to use latest info so use teacher student rel for package
 routerAdd("GET", "/api/t/students", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
@@ -91,6 +108,7 @@ routerAdd("GET", "/api/t/students", (c) => {
     return c.json(200, studentsInfo)
 })
 
+// it need to use latest info so use teacher student rel for package
 routerAdd("POST", "/api/t/routine", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
@@ -275,6 +293,7 @@ routerAdd("POST", "/api/t/routine", (c) => {
     })
 })
 
+// it need to use latest info so use teacher student rel for package
 routerAdd("POST", "/api/t/class-logs", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
@@ -620,6 +639,7 @@ routerAdd("POST", "/api/t/classes/stats", (c) => {
         })
         .one(completedClassInfo)
 
+// it need to use latest info so use teacher student rel for package
     const pendingClassInfo = new DynamicModel({
         totalClass: '',
         totalPrice: ''
@@ -686,6 +706,61 @@ routerAdd("GET", "/api/t/notices", (c) => {
         .all(noticeInfo)
 
     return c.json(200, noticeInfo)
+})
+
+routerAdd("GET", "/api/t/class-note/{id}", (c) => {
+    const userId = c.requestInfo().auth?.id
+    if (!userId) throw ForbiddenError()
+
+    const id = c.request.pathValue("id")
+
+    const classNoteInfo = new DynamicModel({
+        classNote: ''
+    })
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                cl.classNote 
+            FROM classLogs cl
+            JOIN teachers t ON t.id = cl.teacherId 
+            JOIN users u ON u.id = t.userId 
+            WHERE u.id = {:userId}
+            AND cl.id = {:id}   
+        `)
+        .bind({
+            userId,
+            id
+        })
+        .one(classNoteInfo)
+
+    return c.json(200, classNoteInfo.classNote)
+})
+
+routerAdd("POST", "/api/t/class-note/{id}", (c) => {
+    const userId = c.requestInfo().auth?.id
+    if (!userId) throw ForbiddenError()
+
+    const id = c.request.pathValue("id")
+    const { classNote } = c.requestInfo().body
+
+    $app.db()
+        .newQuery(`
+            UPDATE classLogs SET classNote = {:classNote}
+            WHERE id = {:id} AND teacherId = (
+                SELECT t.id FROM teachers t
+                JOIN users u ON t.userId = u.id
+                WHERE u.id = {:userId}
+            )
+        `)
+        .bind({
+            classNote,
+            id,
+            userId
+        })
+        .execute()
+    
+    return c.json(200)
 })
 
 routerAdd("GET", "/api/s/notices", (c) => {
