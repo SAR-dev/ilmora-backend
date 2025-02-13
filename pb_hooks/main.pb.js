@@ -28,7 +28,7 @@ routerAdd("GET", "/api/self", (c) => {
     })
 })
 
-routerAdd("GET", "/api/t/routines", (c) => {
+routerAdd("GET", "/api/t/students", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
 
@@ -37,6 +37,10 @@ routerAdd("GET", "/api/t/routines", (c) => {
         name: '',
         packageName: '',
         packageClassMins: '',
+        country: '',
+        whatsAppNo: '',
+        avatar: '',
+        teachersPrice: '',
         utcOffset: '',
         satTime: '',
         sunTime: '',
@@ -46,7 +50,7 @@ routerAdd("GET", "/api/t/routines", (c) => {
         thuTime: '',
         friTime: '',
         startDate: '',
-        endDate: ''
+        endDate: '',
     }))
 
     $app.db()
@@ -54,8 +58,12 @@ routerAdd("GET", "/api/t/routines", (c) => {
             SELECT 
                 s.id ,
                 us.name ,
+                us.country ,
+                us.whatsAppNo ,
+                us.avatar ,
                 dcp.title AS packageName ,
                 dcp.classMins AS packageClassMins ,
+                dcp.teachersPrice ,
                 COALESCE (r.utcOffset, '') AS utcOffset ,
                 COALESCE (r.satTime, '') AS satTime ,
                 COALESCE (r.sunTime, '') AS sunTime ,
@@ -579,48 +587,6 @@ routerAdd("GET", "/api/t/notices", (c) => {
         .all(noticeInfo)
 
     return c.json(200, noticeInfo)
-})
-
-routerAdd("GET", "/api/t/students", (c) => {
-    const userId = c.requestInfo().auth?.id
-    if (!userId) throw ForbiddenError()
-
-    const studentInfo = arrayOf(new DynamicModel({
-        id: '',
-        name: '',
-        country: '',
-        whatsAppNo: '',
-        avatar: '',
-        packageName: '',
-        classMins: '',
-        teachersPrice: ''
-    }))
-    
-    $app.db()
-        .newQuery(`
-            SELECT 
-                s.id,
-                su.name ,
-                su.country ,
-                su.whatsAppNo ,
-                su.avatar ,
-                dcp.title AS packageName,
-                dcp.classMins ,
-                dcp.teachersPrice 
-            FROM teacherStudentRel tsr 
-            JOIN teachers t ON tsr.teacherId = t.id 
-            JOIN users tu ON tu.id = t.userId 
-            JOIN students s ON tsr.studentId = s.id 
-            JOIN users su ON su.id = s.userId 
-            JOIN dailyClassPackages dcp ON tsr.dailyClassPackageId = dcp.id
-            WHERE tu.id = {:userId}
-        `)
-        .bind({
-            userId
-        })
-        .all(studentInfo)
-
-    return c.json(200, studentInfo)
 })
 
 routerAdd("GET", "/api/s/notices", (c) => {
