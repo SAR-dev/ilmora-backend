@@ -28,7 +28,7 @@ routerAdd("GET", "/api/self", (c) => {
     })
 })
 
-routerAdd("GET", "/api/t/students", (c) => {
+routerAdd("GET", "/api/t/routines", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
 
@@ -409,7 +409,8 @@ routerAdd("POST", "/api/t/classes/day", (c) => {
         studentUserAvatar: '',
         teachersPrice: '',
         classMins: '',
-        classNote: ''
+        classNote: '',
+        studentWhtsAppNo: ''
     }))
 
     const filter = studentId?.length > 0 ? `AND (s.id = '${studentId}')` : ""
@@ -424,6 +425,7 @@ routerAdd("POST", "/api/t/classes/day", (c) => {
                 su.name AS studentName ,
                 su.country AS studentCountry ,
                 su.id AS studentUserId ,
+                su.whatsAppNo AS studentWhtsAppNo ,
                 COALESCE (su.avatar, '') AS studentUserAvatar ,
                 dcp.teachersPrice ,
                 dcp.classMins ,
@@ -459,7 +461,7 @@ routerAdd("POST", "/api/t/classes/month", (c) => {
     if (!utcOffsetRegex.test(utcOffset)) throw ForbiddenError()
 
     // check year and month
-    if(Number(year) <= 2000 || Number(month) < 0 || Number(month) > 11) throw ForbiddenError()
+    if (Number(year) <= 2000 || Number(month) < 0 || Number(month) > 11) throw ForbiddenError()
 
     const getUTCStartEndOfMonth = () => {
         // local timezone offset
@@ -498,9 +500,12 @@ routerAdd("POST", "/api/t/classes/month", (c) => {
         status: '',
         studentName: '',
         studentCountry: '',
+        studentUserId: '',
+        studentUserAvatar: '',
         teachersPrice: '',
         classMins: '',
-        classNote: ''
+        classNote: '',
+        studentWhtsAppNo: ''
     }))
 
     const filter = studentId?.length > 0 ? `AND (s.id = '${studentId}')` : ""
@@ -514,6 +519,9 @@ routerAdd("POST", "/api/t/classes/month", (c) => {
                 cl.status ,
                 su.name AS studentName ,
                 su.country AS studentCountry ,
+                su.id AS studentUserId ,
+                su.whatsAppNo AS studentWhtsAppNo ,
+                COALESCE (su.avatar, '') AS studentUserAvatar ,
                 dcp.teachersPrice ,
                 dcp.classMins ,
                 cl.classNote 
@@ -535,4 +543,118 @@ routerAdd("POST", "/api/t/classes/month", (c) => {
         .all(classLogsInfo)
 
     return c.json(200, classLogsInfo)
+})
+
+routerAdd("GET", "/api/t/notices", (c) => {
+    const userId = c.requestInfo().auth?.id
+    if (!userId) throw ForbiddenError()
+
+    const limitQuery = c.request.url.query().get("limit")
+    const limit = Number(limitQuery) > 0 ? Number(limitQuery) : 5
+
+    const noticeInfo = arrayOf(new DynamicModel({
+        id: '',
+        title: ''
+    }))
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                n.id,
+                n.title 
+            FROM notices n 
+            WHERE EXISTS (
+                SELECT 1 FROM teachers t 
+                JOIN users u ON t.userId = u.id
+                AND u.id = {:userId}
+            )
+            AND n.userType = 'TEACHER'
+            ORDER BY n.created DESC 
+            LIMIT {:limit}
+        `)
+        .bind({
+            userId,
+            limit
+        })
+        .all(noticeInfo)
+
+    return c.json(200, noticeInfo)
+})
+
+routerAdd("GET", "/api/t/students", (c) => {
+    const userId = c.requestInfo().auth?.id
+    if (!userId) throw ForbiddenError()
+
+    const studentInfo = arrayOf(new DynamicModel({
+        id: '',
+        name: '',
+        country: '',
+        whatsAppNo: '',
+        avatar: '',
+        packageName: '',
+        classMins: '',
+        teachersPrice: ''
+    }))
+    
+    $app.db()
+        .newQuery(`
+            SELECT 
+                s.id,
+                su.name ,
+                su.country ,
+                su.whatsAppNo ,
+                su.avatar ,
+                dcp.title AS packageName,
+                dcp.classMins ,
+                dcp.teachersPrice 
+            FROM teacherStudentRel tsr 
+            JOIN teachers t ON tsr.teacherId = t.id 
+            JOIN users tu ON tu.id = t.userId 
+            JOIN students s ON tsr.studentId = s.id 
+            JOIN users su ON su.id = s.userId 
+            JOIN dailyClassPackages dcp ON tsr.dailyClassPackageId = dcp.id
+            WHERE tu.id = {:userId}
+        `)
+        .bind({
+            userId
+        })
+        .all(studentInfo)
+
+    return c.json(200, studentInfo)
+})
+
+routerAdd("GET", "/api/s/notices", (c) => {
+    const userId = c.requestInfo().auth?.id
+    if (!userId) throw ForbiddenError()
+
+    const limitQuery = c.request.url.query().get("limit")
+    const limit = Number(limitQuery) > 0 ? Number(limitQuery) : 5
+
+    const noticeInfo = arrayOf(new DynamicModel({
+        id: '',
+        title: ''
+    }))
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                n.id,
+                n.title 
+            FROM notices n 
+            WHERE EXISTS (
+                SELECT 1 FROM students s 
+                JOIN users u ON s.userId = u.id
+                AND u.id = {:userId}
+            )
+            AND n.userType = 'STUDENT'
+            ORDER BY n.created DESC 
+            LIMIT {:limit}
+        `)
+        .bind({
+            userId,
+            limit
+        })
+        .all(noticeInfo)
+
+    return c.json(200, noticeInfo)
 })
