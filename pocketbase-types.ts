@@ -13,9 +13,10 @@ export enum Collections {
 	Superusers = "_superusers",
 	ClassLogs = "classLogs",
 	DailyClassPackages = "dailyClassPackages",
+	Invoices = "invoices",
 	Notices = "notices",
+	Resources = "resources",
 	Routines = "routines",
-	SharedFiles = "sharedFiles",
 	StudentInvoices = "studentInvoices",
 	Students = "students",
 	TeacherInvoices = "teacherInvoices",
@@ -122,16 +123,45 @@ export type DailyClassPackagesRecord = {
 	id: string
 	studentsPrice?: number
 	teachersPrice?: number
-	title?: string
+	title: string
 	updated?: IsoDateString
 }
 
+export type InvoicesRecord = {
+	classLogId: RecordIdString
+	created?: IsoDateString
+	id: string
+	studentInvoiceId?: RecordIdString
+	teacherInvoiceId?: RecordIdString
+	updated?: IsoDateString
+}
+
+export enum NoticesUserTypeOptions {
+	"STUDENT" = "STUDENT",
+	"TEACHER" = "TEACHER",
+	"ADMIN" = "ADMIN",
+}
 export type NoticesRecord = {
 	created?: IsoDateString
 	description?: HTMLString
 	id: string
 	title: string
 	updated?: IsoDateString
+	userType: NoticesUserTypeOptions
+}
+
+export enum ResourcesUserTypeOptions {
+	"STUDENT" = "STUDENT",
+	"TEACHER" = "TEACHER",
+	"ADMIN" = "ADMIN",
+}
+export type ResourcesRecord = {
+	created?: IsoDateString
+	id: string
+	link: string
+	title: string
+	updated?: IsoDateString
+	userType: ResourcesUserTypeOptions
 }
 
 export type RoutinesRecord = {
@@ -147,16 +177,8 @@ export type RoutinesRecord = {
 	thuTime?: string
 	tueTime?: string
 	updated?: IsoDateString
+	utcOffset: string
 	wedTime?: string
-}
-
-export type SharedFilesRecord = {
-	created?: IsoDateString
-	description?: string
-	id: string
-	link: string
-	title: string
-	updated?: IsoDateString
 }
 
 export type StudentInvoicesRecord = {
@@ -224,7 +246,7 @@ export type UsersRecord = {
 	updated?: IsoDateString
 	utcOffset?: string
 	verified?: boolean
-	whatsAppNo?: string
+	whatsAppNo: string
 }
 
 // Response types include system fields and match responses from the PocketBase API
@@ -235,9 +257,10 @@ export type OtpsResponse<Texpand = unknown> = Required<OtpsRecord> & BaseSystemF
 export type SuperusersResponse<Texpand = unknown> = Required<SuperusersRecord> & AuthSystemFields<Texpand>
 export type ClassLogsResponse<Texpand = unknown> = Required<ClassLogsRecord> & BaseSystemFields<Texpand>
 export type DailyClassPackagesResponse<Texpand = unknown> = Required<DailyClassPackagesRecord> & BaseSystemFields<Texpand>
+export type InvoicesResponse<Texpand = unknown> = Required<InvoicesRecord> & BaseSystemFields<Texpand>
 export type NoticesResponse<Texpand = unknown> = Required<NoticesRecord> & BaseSystemFields<Texpand>
+export type ResourcesResponse<Texpand = unknown> = Required<ResourcesRecord> & BaseSystemFields<Texpand>
 export type RoutinesResponse<Texpand = unknown> = Required<RoutinesRecord> & BaseSystemFields<Texpand>
-export type SharedFilesResponse<Texpand = unknown> = Required<SharedFilesRecord> & BaseSystemFields<Texpand>
 export type StudentInvoicesResponse<Texpand = unknown> = Required<StudentInvoicesRecord> & BaseSystemFields<Texpand>
 export type StudentsResponse<Texpand = unknown> = Required<StudentsRecord> & BaseSystemFields<Texpand>
 export type TeacherInvoicesResponse<Texpand = unknown> = Required<TeacherInvoicesRecord> & BaseSystemFields<Texpand>
@@ -255,9 +278,10 @@ export type CollectionRecords = {
 	_superusers: SuperusersRecord
 	classLogs: ClassLogsRecord
 	dailyClassPackages: DailyClassPackagesRecord
+	invoices: InvoicesRecord
 	notices: NoticesRecord
+	resources: ResourcesRecord
 	routines: RoutinesRecord
-	sharedFiles: SharedFilesRecord
 	studentInvoices: StudentInvoicesRecord
 	students: StudentsRecord
 	teacherInvoices: TeacherInvoicesRecord
@@ -274,9 +298,10 @@ export type CollectionResponses = {
 	_superusers: SuperusersResponse
 	classLogs: ClassLogsResponse
 	dailyClassPackages: DailyClassPackagesResponse
+	invoices: InvoicesResponse
 	notices: NoticesResponse
+	resources: ResourcesResponse
 	routines: RoutinesResponse
-	sharedFiles: SharedFilesResponse
 	studentInvoices: StudentInvoicesResponse
 	students: StudentsResponse
 	teacherInvoices: TeacherInvoicesResponse
@@ -296,9 +321,10 @@ export type TypedPocketBase = PocketBase & {
 	collection(idOrName: '_superusers'): RecordService<SuperusersResponse>
 	collection(idOrName: 'classLogs'): RecordService<ClassLogsResponse>
 	collection(idOrName: 'dailyClassPackages'): RecordService<DailyClassPackagesResponse>
+	collection(idOrName: 'invoices'): RecordService<InvoicesResponse>
 	collection(idOrName: 'notices'): RecordService<NoticesResponse>
+	collection(idOrName: 'resources'): RecordService<ResourcesResponse>
 	collection(idOrName: 'routines'): RecordService<RoutinesResponse>
-	collection(idOrName: 'sharedFiles'): RecordService<SharedFilesResponse>
 	collection(idOrName: 'studentInvoices'): RecordService<StudentInvoicesResponse>
 	collection(idOrName: 'students'): RecordService<StudentsResponse>
 	collection(idOrName: 'teacherInvoices'): RecordService<TeacherInvoicesResponse>

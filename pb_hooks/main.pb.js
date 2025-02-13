@@ -553,6 +553,105 @@ routerAdd("POST", "/api/t/classes/month", (c) => {
     return c.json(200, classLogsInfo)
 })
 
+routerAdd("POST", "/api/t/classes/stats", (c) => {
+    const userId = c.requestInfo().auth?.id
+    if (!userId) throw ForbiddenError()
+
+    const { utcOffset, year, month } = c.requestInfo().body
+
+    // utcOffset pattern check
+    const utcOffsetRegex = new RegExp('^[+-](0[0-9]|1[0-4]):[0-5][0-9]$');
+    if (!utcOffsetRegex.test(utcOffset)) throw ForbiddenError()
+
+    // check year and month
+    if (Number(year) <= 2000 || Number(month) < 0 || Number(month) > 11) throw ForbiddenError()
+
+    const getUTCStartEndOfMonth = () => {
+        // local timezone offset
+        const localOffsetMinutes = (new Date()).getTimezoneOffset();
+
+        const offsetSign = utcOffset.startsWith("+") ? -1 : 1;
+        const [hours, minutes] = utcOffset.slice(1).split(":").map(Number);
+
+        // payload timezone offset
+        const payloadOffsetMinutes = offsetSign * (hours * 60 + minutes)
+
+        // overall timezone offset
+        const totalOffsetMinutes = payloadOffsetMinutes - localOffsetMinutes;
+
+        const startDate = new Date(Number(year), Number(month), 1);
+        startDate.setHours(0, 0, 0, 0);
+
+        const endDate = new Date(Number(year), Number(month) + 1, 0);
+        endDate.setHours(23, 59, 59, 999);
+
+        const startOfDay = new Date(startDate.getTime() - totalOffsetMinutes);
+        const endOfDay = new Date(endDate.getTime() - totalOffsetMinutes);
+
+        return {
+            minStartedAt: startOfDay.toISOString().replace("T", " "),
+            maxStartedAt: endOfDay.toISOString().replace("T", " ")
+        };
+    }
+
+    const { minStartedAt, maxStartedAt } = getUTCStartEndOfMonth()
+
+    const completedClassInfo = new DynamicModel({
+        totalClass: '',
+        totalPrice: ''
+    })
+
+    $app.db()
+        .newQuery(`
+            SELECT
+                COALESCE (count(cl.id), 0) AS totalClass ,
+                COALESCE (sum(cl.teachersPrice), 0) AS totalPrice
+            FROM classLogs cl 
+            JOIN teachers t ON cl.teacherId = t.id 
+            JOIN users tu ON tu.id = t.userId 
+            WHERE tu.id = {:userId}
+            AND cl.status = 'FINISHED'
+            AND cl.startedAt BETWEEN {:minStartedAt} AND {:maxStartedAt}
+        `)
+        .bind({
+            userId,
+            minStartedAt,
+            maxStartedAt
+        })
+        .one(completedClassInfo)
+
+    const pendingClassInfo = new DynamicModel({
+        totalClass: '',
+        totalPrice: ''
+    })
+
+    $app.db()
+        .newQuery(`
+            SELECT
+                COALESCE (count(cl.id), 0) AS totalClass ,
+                COALESCE (sum(dcp.teachersPrice), 0) AS totalPrice
+            FROM classLogs cl 
+            JOIN teachers t ON cl.teacherId = t.id 
+            JOIN users tu ON tu.id = t.userId 
+            JOIN teacherStudentRel tsr ON tsr.teacherId = cl.teacherId AND tsr.studentId = cl.studentId
+            JOIN dailyClassPackages dcp ON tsr.dailyClassPackageId = dcp.id  
+            WHERE tu.id = {:userId}
+            AND cl.status != 'FINISHED'
+            AND cl.startedAt BETWEEN {:minStartedAt} AND {:maxStartedAt}
+        `)
+        .bind({
+            userId,
+            minStartedAt,
+            maxStartedAt
+        })
+        .one(pendingClassInfo)
+
+    return c.json(200, {
+        completedClassInfo,
+        pendingClassInfo
+    })
+})
+
 routerAdd("GET", "/api/t/notices", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
