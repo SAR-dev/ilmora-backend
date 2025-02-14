@@ -1045,6 +1045,54 @@ routerAdd("POST", "/api/t/class-logs/{id}/finish", (c) => {
     return c.json(200)
 })
 
+// Once invoice has been issued you can not delete class
+routerAdd("POST", "/api/t/class-logs/{id}/delete", (c) => {
+    const userId = c.requestInfo().auth?.id
+    if (!userId) throw ForbiddenError()
+
+    const id = c.request.pathValue("id")
+
+    const invoiceInfo = new DynamicModel({
+        studentInvoiceId: '',
+        teacherInvoiceId: ''
+    })
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                COALESCE (si.id, '') AS studentInvoiceId,
+                COALESCE (ti.id, '') AS teacherInvoiceId
+            FROM classLogs cl 
+            LEFT JOIN invoices si ON si.id = cl.studentInvoiceId 
+            LEFT JOIN invoices ti ON ti.id = cl.teacherInvoiceId 
+            WHERE cl.id = {:id}   
+        `)
+        .bind({
+            id
+        })
+        .one(invoiceInfo)
+
+    if(invoiceInfo.studentInvoiceId.length > 0 || invoiceInfo.teacherInvoiceId.length > 0){
+        throw ApiError(500, "Class has already been invoiced!")
+    }
+
+    $app.db()
+        .newQuery(`
+            DELETE FROM classLogs 
+            WHERE id = {:id}
+            AND teacherId = (
+                SELECT id FROM teachers WHERE userId = {:userId}
+            )
+        `)
+        .bind({
+            id,
+            userId
+        })
+        .execute()
+
+    return c.json(200)
+})
+
 // Once invoice has been issued you can not update daily package
 routerAdd("POST", "/api/t/class-logs/{id}/package", (c) => {
     const userId = c.requestInfo().auth?.id
@@ -1052,6 +1100,30 @@ routerAdd("POST", "/api/t/class-logs/{id}/package", (c) => {
 
     const id = c.request.pathValue("id")
     const { dailyClassPackageId } = c.requestInfo().body
+
+    const invoiceInfo = new DynamicModel({
+        studentInvoiceId: '',
+        teacherInvoiceId: ''
+    })
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                COALESCE (si.id, '') AS studentInvoiceId,
+                COALESCE (ti.id, '') AS teacherInvoiceId
+            FROM classLogs cl 
+            LEFT JOIN invoices si ON si.id = cl.studentInvoiceId 
+            LEFT JOIN invoices ti ON ti.id = cl.teacherInvoiceId 
+            WHERE cl.id = {:id}   
+        `)
+        .bind({
+            id
+        })
+        .one(invoiceInfo)
+
+    if(invoiceInfo.studentInvoiceId.length > 0 || invoiceInfo.teacherInvoiceId.length > 0){
+        throw ApiError(500, "Class has already been invoiced!")
+    }
 
     $app.db()
         .newQuery(`
