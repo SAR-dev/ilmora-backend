@@ -843,7 +843,7 @@ routerAdd("GET", "/api/t/notices", (c) => {
     return c.json(200, noticeInfo)
 })
 
-routerAdd("GET", "/api/t/class-note/{id}", (c) => {
+routerAdd("GET", "/api/t/class-notes/{id}", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
 
@@ -872,7 +872,7 @@ routerAdd("GET", "/api/t/class-note/{id}", (c) => {
     return c.json(200, classNoteInfo.classNote)
 })
 
-routerAdd("POST", "/api/t/class-note/{id}", (c) => {
+routerAdd("POST", "/api/t/class-notes/{id}", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
 
