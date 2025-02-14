@@ -397,7 +397,7 @@ routerAdd("POST", "/api/t/classes/filter", (c) => {
 
     const { utcOffset, startDate, endDate, studentId } = c.requestInfo().body
 
-    pageSize = Number(pageSize) > 0 ? Number(pageSize) : 20;
+    pageSize = Number(pageSize) > 0 && Number(pageSize) < 100 ? Number(pageSize) : 50;
     pageNo = Number(pageNo) > 0 ? Number(pageNo) : 1;
 
     // utcOffset pattern check
@@ -478,7 +478,9 @@ routerAdd("POST", "/api/t/classes/filter", (c) => {
         teachersPrice: '',
         classMins: '',
         classNote: '',
-        studentWhtsAppNo: ''
+        studentWhtsAppNo: '',
+        utcOffset: '',
+        packageName: ''
     }))
 
     $app.db()
@@ -493,9 +495,11 @@ routerAdd("POST", "/api/t/classes/filter", (c) => {
                 su.id AS studentUserId ,
                 su.whatsAppNo AS studentWhtsAppNo ,
                 COALESCE (su.avatar, '') AS studentUserAvatar ,
+                dcp.title AS packageName ,
                 dcp.teachersPrice ,
                 dcp.classMins ,
-                cl.classNote 
+                cl.classNote ,
+                COALESCE (su.utcOffset, '') AS utcOffset
             FROM classLogs cl 
             JOIN teachers t ON cl.teacherId = t.id 
             JOIN users tu ON tu.id = t.userId 
@@ -572,7 +576,9 @@ routerAdd("POST", "/api/t/classes/day", (c) => {
         teachersPrice: '',
         classMins: '',
         classNote: '',
-        studentWhtsAppNo: ''
+        studentWhtsAppNo: '',
+        utcOffset: '',
+        packageName: ''
     }))
 
     const filter = studentId?.length > 0 ? `AND (s.id = '${studentId}')` : ""
@@ -589,9 +595,11 @@ routerAdd("POST", "/api/t/classes/day", (c) => {
                 su.id AS studentUserId ,
                 su.whatsAppNo AS studentWhtsAppNo ,
                 COALESCE (su.avatar, '') AS studentUserAvatar ,
+                dcp.title AS packageName ,
                 dcp.teachersPrice ,
                 dcp.classMins ,
-                cl.classNote 
+                cl.classNote ,
+                COALESCE (su.utcOffset, '') AS utcOffset
             FROM classLogs cl 
             JOIN teachers t ON cl.teacherId = t.id 
             JOIN users tu ON tu.id = t.userId 
@@ -665,9 +673,11 @@ routerAdd("POST", "/api/t/classes/month", (c) => {
         studentUserId: '',
         studentUserAvatar: '',
         teachersPrice: '',
+        packageName: '',
         classMins: '',
         classNote: '',
-        studentWhtsAppNo: ''
+        studentWhtsAppNo: '',
+        utcOffset: ''
     }))
 
     const filter = studentId?.length > 0 ? `AND (s.id = '${studentId}')` : ""
@@ -684,9 +694,11 @@ routerAdd("POST", "/api/t/classes/month", (c) => {
                 su.id AS studentUserId ,
                 su.whatsAppNo AS studentWhtsAppNo ,
                 COALESCE (su.avatar, '') AS studentUserAvatar ,
+                dcp.title AS packageName ,
                 dcp.teachersPrice ,
                 dcp.classMins ,
-                cl.classNote 
+                cl.classNote ,
+                COALESCE (su.utcOffset, '') AS utcOffset
             FROM classLogs cl 
             JOIN teachers t ON cl.teacherId = t.id 
             JOIN users tu ON tu.id = t.userId 
