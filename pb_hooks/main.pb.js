@@ -388,6 +388,141 @@ routerAdd("POST", "/api/t/class-logs", (c) => {
     })
 })
 
+routerAdd("POST", "/api/t/classes/filter", (c) => {
+    const userId = c.requestInfo().auth?.id
+    if (!userId) throw ForbiddenError()
+
+    let pageSize = c.request.url.query().get("pageSize");
+    let pageNo = c.request.url.query().get("pageNo");
+
+    const { utcOffset, startDate, endDate, studentId } = c.requestInfo().body
+
+    pageSize = Number(pageSize) > 0 ? Number(pageSize) : 20;
+    pageNo = Number(pageNo) > 0 ? Number(pageNo) : 1;
+
+    // utcOffset pattern check
+    const utcOffsetRegex = new RegExp('^[+-](0[0-9]|1[0-4]):[0-5][0-9]$');
+    if (!utcOffsetRegex.test(utcOffset)) throw ForbiddenError()
+
+    const getUTCMinMaxDates = () => {
+        // local timezone offset
+        const localOffsetMinutes = (new Date()).getTimezoneOffset();
+
+        const offsetSign = utcOffset.startsWith("+") ? -1 : 1;
+        const [hours, minutes] = utcOffset.slice(1).split(":").map(Number);
+
+        // payload timezone offset
+        const payloadOffsetMinutes = offsetSign * (hours * 60 + minutes)
+
+        // overall timezone offset
+        const totalOffsetMinutes = payloadOffsetMinutes - localOffsetMinutes;
+
+        let minStartedAt = "";
+        if (startDate?.length > 0) {
+            const localStartDate = new Date(startDate);
+            localStartDate.setHours(0, 0, 0, 0);
+            minStartedAt = new Date(localStartDate.getTime() - totalOffsetMinutes).toISOString().replace("T", " ");
+        }
+
+        let maxStartedAt = "";
+        if (endDate?.length > 0) {
+            const localEndDate = new Date(endDate);
+            localEndDate.setHours(23, 59, 59, 999);
+            maxStartedAt = new Date(localEndDate.getTime() - totalOffsetMinutes).toISOString().replace("T", " ");
+        }
+        return {
+            minStartedAt,
+            maxStartedAt
+        };
+    }
+
+    const { minStartedAt, maxStartedAt } = getUTCMinMaxDates()
+
+    const filters = []
+    if (studentId?.length > 0) filters.push(`AND (s.id = '${studentId}')`)
+    if (minStartedAt.length > 0) filters.push(`AND (cl.startedAt) > '${minStartedAt}'`)
+    if (maxStartedAt.length > 0) filters.push(`AND (cl.startedAt) < '${maxStartedAt}'`)
+    const filter = filters.join(" ")
+
+    const counted = new DynamicModel({
+        totalItems: ''
+    })
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                COALESCE(count(cl.id), 0) AS totalItems
+            FROM classLogs cl 
+            JOIN teachers t ON cl.teacherId = t.id 
+            JOIN users tu ON tu.id = t.userId 
+            JOIN students s ON cl.studentId = s.id 
+            WHERE tu.id = {:userId}
+            ${filter}
+        `)
+        .bind({
+            userId
+        })
+        .one(counted)
+
+    const totalItems = Number(counted.totalItems)
+
+    const classLogsInfo = arrayOf(new DynamicModel({
+        id: '',
+        startedAt: '',
+        finishedAt: '',
+        status: '',
+        studentName: '',
+        studentCountry: '',
+        studentUserId: '',
+        studentUserAvatar: '',
+        teachersPrice: '',
+        classMins: '',
+        classNote: '',
+        studentWhtsAppNo: ''
+    }))
+
+    $app.db()
+        .newQuery(`
+            SELECT DISTINCT
+                cl.id ,
+                cl.startedAt ,
+                cl.finishedAt ,
+                cl.status ,
+                su.name AS studentName ,
+                su.country AS studentCountry ,
+                su.id AS studentUserId ,
+                su.whatsAppNo AS studentWhtsAppNo ,
+                COALESCE (su.avatar, '') AS studentUserAvatar ,
+                dcp.teachersPrice ,
+                dcp.classMins ,
+                cl.classNote 
+            FROM classLogs cl 
+            JOIN teachers t ON cl.teacherId = t.id 
+            JOIN users tu ON tu.id = t.userId 
+            JOIN students s ON cl.studentId = s.id 
+            JOIN users su ON su.id = s.userId 
+            JOIN dailyClassPackages dcp ON dcp.id = cl.dailyClassPackageId
+            WHERE tu.id = {:userId}
+            ${filter}
+            ORDER BY cl.created DESC
+            LIMIT ${Number(pageSize)} OFFSET ${(Number(pageNo) - 1) * Number(pageSize)}
+        `)
+        .bind({
+            userId
+        })
+        .all(classLogsInfo)
+
+    return c.json(200, {
+        pageNo: pageNo,
+        pageSize: pageSize,
+        totalPages: Math.ceil(totalItems / pageSize),
+        totalItems: totalItems,
+        hasNext: pageNo < Math.ceil(totalItems / pageSize),
+        hasPrev: pageNo > 1,
+        items: classLogsInfo
+    })
+})
+
 routerAdd("POST", "/api/t/classes/day", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
@@ -639,7 +774,7 @@ routerAdd("POST", "/api/t/classes/stats", (c) => {
         })
         .one(completedClassInfo)
 
-// it need to use latest info so use teacher student rel for package
+    // it need to use latest info so use teacher student rel for package
     const pendingClassInfo = new DynamicModel({
         totalClass: '',
         totalPrice: ''
@@ -759,7 +894,7 @@ routerAdd("POST", "/api/t/class-note/{id}", (c) => {
             userId
         })
         .execute()
-    
+
     return c.json(200)
 })
 
@@ -768,7 +903,7 @@ routerAdd("GET", "/api/t/class-logs/{id}", (c) => {
     if (!userId) throw ForbiddenError()
 
     const id = c.request.pathValue("id")
-    
+
     const classLogInfo = new DynamicModel({
         id: '',
         studentName: '',
@@ -790,7 +925,7 @@ routerAdd("GET", "/api/t/class-logs/{id}", (c) => {
         classMins: '',
         teachersPrice: '',
         classLink: ''
-    });    
+    });
 
     $app.db()
         .newQuery(`
@@ -830,7 +965,7 @@ routerAdd("GET", "/api/t/class-logs/{id}", (c) => {
             userId
         })
         .one(classLogInfo)
-    
+
     return c.json(200, classLogInfo)
 })
 
@@ -838,7 +973,7 @@ routerAdd("POST", "/api/t/class-logs/{id}/start", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
 
-    const id = c.request.pathValue("id") 
+    const id = c.request.pathValue("id")
 
     $app.db()
         .newQuery(`
@@ -857,7 +992,7 @@ routerAdd("POST", "/api/t/class-logs/{id}/start", (c) => {
             userId
         })
         .execute()
-    
+
     return c.json(200)
 })
 
@@ -865,7 +1000,7 @@ routerAdd("POST", "/api/t/class-logs/{id}/finish", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
 
-    const id = c.request.pathValue("id") 
+    const id = c.request.pathValue("id")
 
     $app.db()
         .newQuery(`
@@ -894,7 +1029,7 @@ routerAdd("POST", "/api/t/class-logs/{id}/finish", (c) => {
             userId
         })
         .execute()
-    
+
     return c.json(200)
 })
 
@@ -903,7 +1038,7 @@ routerAdd("POST", "/api/t/class-logs/{id}/package", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
 
-    const id = c.request.pathValue("id") 
+    const id = c.request.pathValue("id")
     const { dailyClassPackageId } = c.requestInfo().body
 
     $app.db()
@@ -929,7 +1064,7 @@ routerAdd("POST", "/api/t/class-logs/{id}/package", (c) => {
             dailyClassPackageId
         })
         .execute()
-    
+
     return c.json(200)
 })
 
