@@ -763,6 +763,176 @@ routerAdd("POST", "/api/t/class-note/{id}", (c) => {
     return c.json(200)
 })
 
+routerAdd("GET", "/api/t/class-logs/{id}", (c) => {
+    const userId = c.requestInfo().auth?.id
+    if (!userId) throw ForbiddenError()
+
+    const id = c.request.pathValue("id")
+    
+    const classLogInfo = new DynamicModel({
+        id: '',
+        studentName: '',
+        studentAvatar: '',
+        studentWhatsAppNo: '',
+        studentCountry: '',
+        studentOffset: '',
+        teacherName: '',
+        teacherAvatar: '',
+        teacherWhatsAppNo: '',
+        teacherCountry: '',
+        teacherOffset: '',
+        startedAt: '',
+        finishedAt: '',
+        status: '',
+        classNote: '',
+        packageId: '',
+        packageTitle: '',
+        classMins: '',
+        teachersPrice: '',
+        classLink: ''
+    });    
+
+    $app.db()
+        .newQuery(`
+            SELECT DISTINCT
+                cl.id,
+                su.name AS studentName ,
+                su.avatar AS studentAvatar ,
+                su.whatsAppNo AS studentWhatsAppNo ,
+                su.country AS studentCountry ,
+                su.utcOffset AS studentOffset ,
+                tu.name AS teacherName ,
+                tu.avatar AS teacherAvatar ,
+                tu.whatsAppNo AS teacherWhatsAppNo ,
+                tu.country AS teacherCountry ,
+                tu.utcOffset AS teacherOffset ,
+                cl.startedAt ,
+                COALESCE (cl.finishedAt, '') AS finishedAt ,
+                cl.status ,
+                COALESCE (cl.classNote, '') AS classNote ,
+                dcp.id AS packageId ,
+                dcp.title AS packageTitle ,
+                dcp.classMins ,
+                dcp.teachersPrice ,
+                COALESCE (tsr.classLink, '') AS classLink
+            FROM classLogs cl 
+            JOIN teachers t ON cl.teacherId = t.id 
+            JOIN users tu ON tu.id = t.userId 
+            JOIN students s ON cl.studentId = s.id 
+            JOIN users su ON su.id = s.userId 
+            JOIN dailyClassPackages dcp ON dcp.id = cl.dailyClassPackageId
+            JOIN teacherStudentRel tsr ON tsr.teacherId = t.id AND tsr.studentId = s.id
+            WHERE cl.id = {:id}
+            AND tu.id = {:userId}
+        `)
+        .bind({
+            id,
+            userId
+        })
+        .one(classLogInfo)
+    
+    return c.json(200, classLogInfo)
+})
+
+routerAdd("POST", "/api/t/class-logs/{id}/start", (c) => {
+    const userId = c.requestInfo().auth?.id
+    if (!userId) throw ForbiddenError()
+
+    const id = c.request.pathValue("id") 
+
+    $app.db()
+        .newQuery(`
+            UPDATE classLogs 
+            SET 
+                startedAt = CURRENT_TIMESTAMP , 
+                status = 'STARTED' 
+            WHERE id = {:id}
+            AND status = 'CREATED'
+            AND teacherId = (
+                SELECT id FROM teachers WHERE userId = {:userId}
+            )
+        `)
+        .bind({
+            id,
+            userId
+        })
+        .execute()
+    
+    return c.json(200)
+})
+
+routerAdd("POST", "/api/t/class-logs/{id}/finish", (c) => {
+    const userId = c.requestInfo().auth?.id
+    if (!userId) throw ForbiddenError()
+
+    const id = c.request.pathValue("id") 
+
+    $app.db()
+        .newQuery(`
+            UPDATE classLogs 
+            SET 
+                finishedAt = CURRENT_TIMESTAMP , 
+                status = 'FINISHED' ,
+                teachersPrice = (
+                    SELECT dcp.teachersPrice FROM classLogs cl 
+                    JOIN dailyClassPackages dcp ON dcp.id = cl.dailyClassPackageId 
+                    WHERE cl.id = {:id}
+                ),
+                studentsPrice = (
+                    SELECT dcp.studentsPrice FROM classLogs cl 
+                    JOIN dailyClassPackages dcp ON dcp.id = cl.dailyClassPackageId 
+                    WHERE cl.id = {:id}
+                )
+            WHERE id = {:id}
+            AND status = 'STARTED'
+            AND teacherId = (
+                SELECT id FROM teachers WHERE userId = {:userId}
+            )
+        `)
+        .bind({
+            id,
+            userId
+        })
+        .execute()
+    
+    return c.json(200)
+})
+
+// Once invoice has been issued you can not update daily package
+routerAdd("POST", "/api/t/class-logs/{id}/package", (c) => {
+    const userId = c.requestInfo().auth?.id
+    if (!userId) throw ForbiddenError()
+
+    const id = c.request.pathValue("id") 
+    const { dailyClassPackageId } = c.requestInfo().body
+
+    $app.db()
+        .newQuery(`
+            UPDATE classLogs 
+            SET 
+                dailyClassPackageId = {:dailyClassPackageId} ,
+                teachersPrice = (
+                    SELECT teachersPrice FROM dailyClassPackages WHERE id = {:dailyClassPackageId}
+                ),
+                studentsPrice = (
+                    SELECT studentsPrice FROM dailyClassPackages WHERE id = {:dailyClassPackageId}
+                )
+            WHERE id = {:id}
+            AND status = 'FINISHED'
+            AND teacherId = (
+                SELECT id FROM teachers WHERE userId = {:userId}
+            )
+        `)
+        .bind({
+            id,
+            userId,
+            dailyClassPackageId
+        })
+        .execute()
+    
+    return c.json(200)
+})
+
 routerAdd("GET", "/api/s/notices", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
