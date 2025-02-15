@@ -17,9 +17,9 @@ export enum Collections {
 	Notices = "notices",
 	Resources = "resources",
 	Routines = "routines",
-	StudentInvoices = "studentInvoices",
+	StudentBalances = "studentBalances",
 	Students = "students",
-	TeacherInvoices = "teacherInvoices",
+	TeacherBalances = "teacherBalances",
 	TeacherStudentRel = "teacherStudentRel",
 	Teachers = "teachers",
 	Users = "users",
@@ -85,12 +85,19 @@ export type OtpsRecord = {
 	updated?: IsoDateString
 }
 
+export enum SuperusersRoleOptions {
+	"STAFF" = "STAFF",
+	"ADMIN" = "ADMIN",
+}
 export type SuperusersRecord = {
+	avatar?: string
 	created?: IsoDateString
 	email: string
 	emailVisibility?: boolean
 	id: string
+	name?: string
 	password: string
+	role?: SuperusersRoleOptions
 	tokenKey: string
 	updated?: IsoDateString
 	verified?: boolean
@@ -110,8 +117,10 @@ export type ClassLogsRecord = {
 	startedAt?: IsoDateString
 	status: ClassLogsStatusOptions
 	studentId: RecordIdString
+	studentInvoiceId?: RecordIdString
 	studentsPrice?: number
 	teacherId: RecordIdString
+	teacherInvoiceId?: RecordIdString
 	teachersPrice?: number
 	updated?: IsoDateString
 }
@@ -127,13 +136,15 @@ export type DailyClassPackagesRecord = {
 	updated?: IsoDateString
 }
 
+export enum InvoicesUserTypeOptions {
+	"TEACHER" = "TEACHER",
+	"STUDENT" = "STUDENT",
+}
 export type InvoicesRecord = {
-	classLogId: RecordIdString
 	created?: IsoDateString
 	id: string
-	studentInvoiceId?: RecordIdString
-	teacherInvoiceId?: RecordIdString
 	updated?: IsoDateString
+	userType: InvoicesUserTypeOptions
 }
 
 export enum NoticesUserTypeOptions {
@@ -181,16 +192,13 @@ export type RoutinesRecord = {
 	wedTime?: string
 }
 
-export type StudentInvoicesRecord = {
+export type StudentBalancesRecord = {
 	created?: IsoDateString
-	dueAmount?: number
-	finishDate?: string
 	id: string
-	isNotified?: boolean
-	note?: string
 	paidAmount?: number
-	startDate?: string
-	studentId: RecordIdString
+	paymentInfo?: string
+	paymentMethod?: string
+	studentId?: RecordIdString
 	updated?: IsoDateString
 }
 
@@ -201,16 +209,13 @@ export type StudentsRecord = {
 	userId: RecordIdString
 }
 
-export type TeacherInvoicesRecord = {
+export type TeacherBalancesRecord = {
 	created?: IsoDateString
-	dueAmount?: number
-	finishDate?: string
 	id: string
-	isNotified?: boolean
-	note?: string
 	paidAmount?: number
-	startDate?: string
-	teacherId: RecordIdString
+	paymentInfo?: string
+	paymentMethod?: string
+	teacherId?: RecordIdString
 	updated?: IsoDateString
 }
 
@@ -261,9 +266,9 @@ export type InvoicesResponse<Texpand = unknown> = Required<InvoicesRecord> & Bas
 export type NoticesResponse<Texpand = unknown> = Required<NoticesRecord> & BaseSystemFields<Texpand>
 export type ResourcesResponse<Texpand = unknown> = Required<ResourcesRecord> & BaseSystemFields<Texpand>
 export type RoutinesResponse<Texpand = unknown> = Required<RoutinesRecord> & BaseSystemFields<Texpand>
-export type StudentInvoicesResponse<Texpand = unknown> = Required<StudentInvoicesRecord> & BaseSystemFields<Texpand>
+export type StudentBalancesResponse<Texpand = unknown> = Required<StudentBalancesRecord> & BaseSystemFields<Texpand>
 export type StudentsResponse<Texpand = unknown> = Required<StudentsRecord> & BaseSystemFields<Texpand>
-export type TeacherInvoicesResponse<Texpand = unknown> = Required<TeacherInvoicesRecord> & BaseSystemFields<Texpand>
+export type TeacherBalancesResponse<Texpand = unknown> = Required<TeacherBalancesRecord> & BaseSystemFields<Texpand>
 export type TeacherStudentRelResponse<Texpand = unknown> = Required<TeacherStudentRelRecord> & BaseSystemFields<Texpand>
 export type TeachersResponse<Texpand = unknown> = Required<TeachersRecord> & BaseSystemFields<Texpand>
 export type UsersResponse<Texpand = unknown> = Required<UsersRecord> & AuthSystemFields<Texpand>
@@ -282,9 +287,9 @@ export type CollectionRecords = {
 	notices: NoticesRecord
 	resources: ResourcesRecord
 	routines: RoutinesRecord
-	studentInvoices: StudentInvoicesRecord
+	studentBalances: StudentBalancesRecord
 	students: StudentsRecord
-	teacherInvoices: TeacherInvoicesRecord
+	teacherBalances: TeacherBalancesRecord
 	teacherStudentRel: TeacherStudentRelRecord
 	teachers: TeachersRecord
 	users: UsersRecord
@@ -302,9 +307,9 @@ export type CollectionResponses = {
 	notices: NoticesResponse
 	resources: ResourcesResponse
 	routines: RoutinesResponse
-	studentInvoices: StudentInvoicesResponse
+	studentBalances: StudentBalancesResponse
 	students: StudentsResponse
-	teacherInvoices: TeacherInvoicesResponse
+	teacherBalances: TeacherBalancesResponse
 	teacherStudentRel: TeacherStudentRelResponse
 	teachers: TeachersResponse
 	users: UsersResponse
@@ -325,9 +330,9 @@ export type TypedPocketBase = PocketBase & {
 	collection(idOrName: 'notices'): RecordService<NoticesResponse>
 	collection(idOrName: 'resources'): RecordService<ResourcesResponse>
 	collection(idOrName: 'routines'): RecordService<RoutinesResponse>
-	collection(idOrName: 'studentInvoices'): RecordService<StudentInvoicesResponse>
+	collection(idOrName: 'studentBalances'): RecordService<StudentBalancesResponse>
 	collection(idOrName: 'students'): RecordService<StudentsResponse>
-	collection(idOrName: 'teacherInvoices'): RecordService<TeacherInvoicesResponse>
+	collection(idOrName: 'teacherBalances'): RecordService<TeacherBalancesResponse>
 	collection(idOrName: 'teacherStudentRel'): RecordService<TeacherStudentRelResponse>
 	collection(idOrName: 'teachers'): RecordService<TeachersResponse>
 	collection(idOrName: 'users'): RecordService<UsersResponse>

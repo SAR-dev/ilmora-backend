@@ -20,18 +20,40 @@ routerAdd("GET", "/api/self", (c) => {
 
     const userInfo = new DynamicModel({
         isTeacher: '',
-        isStudent: ''
+        isStudent: '',
+        isSuperUser: '',
+        isSuperAdmin: '',
+        isSuperStaff: ''
     })
 
     $app.db()
         .newQuery(`
             SELECT 
-                CASE WHEN t.id IS NOT NULL THEN TRUE ELSE FALSE END AS isTeacher,
-                CASE WHEN s.id IS NOT NULL THEN TRUE ELSE FALSE END AS isStudent
-            FROM users u 
-            LEFT JOIN students s ON s.userId = u.id 
-            LEFT JOIN teachers t ON t.userId = u.id
-            WHERE u.id = {:userId}
+                COALESCE(
+                    (SELECT CASE WHEN t.id IS NOT NULL THEN TRUE ELSE FALSE END 
+                    FROM teachers t WHERE t.userId = {:userId} 
+                    LIMIT 1), FALSE
+                ) AS isTeacher,
+                COALESCE(
+                    (SELECT CASE WHEN s.id IS NOT NULL THEN TRUE ELSE FALSE END 
+                    FROM students s WHERE s.userId = {:userId}
+                    LIMIT 1), FALSE
+                ) AS isStudent,
+                COALESCE(
+                    (SELECT CASE WHEN s.id IS NOT NULL THEN TRUE ELSE FALSE END 
+                    FROM _superusers s WHERE s.id = {:userId}
+                    LIMIT 1), FALSE
+                ) AS isSuperUser,
+                COALESCE(
+                    (SELECT CASE WHEN s.id IS NOT NULL AND s.role = 'ADMIN' THEN TRUE ELSE FALSE END 
+                    FROM _superusers s WHERE s.id = {:userId}
+                    LIMIT 1), FALSE
+                ) AS isSuperAdmin,
+                COALESCE(
+                    (SELECT CASE WHEN s.id IS NOT NULL AND s.role = 'STAFF' THEN TRUE ELSE FALSE END 
+                    FROM _superusers s WHERE s.id = {:userId}
+                    LIMIT 1), FALSE
+                ) AS isSuperStaff
         `)
         .bind({
             userId
@@ -41,6 +63,9 @@ routerAdd("GET", "/api/self", (c) => {
     return c.json(200, {
         isTeacher: userInfo.isTeacher == 1,
         isStudent: userInfo.isStudent == 1,
+        isSuperUser: userInfo.isSuperUser == 1,
+        isSuperAdmin: userInfo.isSuperAdmin == 1,
+        isSuperStaff: userInfo.isSuperStaff == 1
     })
 })
 
@@ -1072,7 +1097,7 @@ routerAdd("POST", "/api/t/class-logs/{id}/delete", (c) => {
         })
         .one(invoiceInfo)
 
-    if(invoiceInfo.studentInvoiceId.length > 0 || invoiceInfo.teacherInvoiceId.length > 0){
+    if (invoiceInfo.studentInvoiceId.length > 0 || invoiceInfo.teacherInvoiceId.length > 0) {
         throw ApiError(500, "Class has already been invoiced!")
     }
 
@@ -1121,7 +1146,7 @@ routerAdd("POST", "/api/t/class-logs/{id}/package", (c) => {
         })
         .one(invoiceInfo)
 
-    if(invoiceInfo.studentInvoiceId.length > 0 || invoiceInfo.teacherInvoiceId.length > 0){
+    if (invoiceInfo.studentInvoiceId.length > 0 || invoiceInfo.teacherInvoiceId.length > 0) {
         throw ApiError(500, "Class has already been invoiced!")
     }
 
