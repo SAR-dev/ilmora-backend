@@ -22,8 +22,7 @@ routerAdd("GET", "/api/self", (c) => {
         isTeacher: '',
         isStudent: '',
         isSuperUser: '',
-        isSuperAdmin: '',
-        isSuperStaff: ''
+        superUserRole: ''
     })
 
     $app.db()
@@ -44,16 +43,7 @@ routerAdd("GET", "/api/self", (c) => {
                     FROM _superusers s WHERE s.id = {:userId}
                     LIMIT 1), FALSE
                 ) AS isSuperUser,
-                COALESCE(
-                    (SELECT CASE WHEN s.id IS NOT NULL AND s.role = 'ADMIN' THEN TRUE ELSE FALSE END 
-                    FROM _superusers s WHERE s.id = {:userId}
-                    LIMIT 1), FALSE
-                ) AS isSuperAdmin,
-                COALESCE(
-                    (SELECT CASE WHEN s.id IS NOT NULL AND s.role = 'STAFF' THEN TRUE ELSE FALSE END 
-                    FROM _superusers s WHERE s.id = {:userId}
-                    LIMIT 1), FALSE
-                ) AS isSuperStaff
+                (SELECT COALESCE (s.role, '') FROM _superusers s WHERE s.id = {:userId}) AS superUserRole
         `)
         .bind({
             userId
@@ -64,8 +54,7 @@ routerAdd("GET", "/api/self", (c) => {
         isTeacher: userInfo.isTeacher == 1,
         isStudent: userInfo.isStudent == 1,
         isSuperUser: userInfo.isSuperUser == 1,
-        isSuperAdmin: userInfo.isSuperAdmin == 1,
-        isSuperStaff: userInfo.isSuperStaff == 1
+        superUserRole: userInfo.superUserRole
     })
 })
 

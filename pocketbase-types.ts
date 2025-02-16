@@ -13,13 +13,14 @@ export enum Collections {
 	Superusers = "_superusers",
 	ClassLogs = "classLogs",
 	DailyClassPackages = "dailyClassPackages",
-	Invoices = "invoices",
 	Notices = "notices",
 	Resources = "resources",
 	Routines = "routines",
 	StudentBalances = "studentBalances",
+	StudentInvoices = "studentInvoices",
 	Students = "students",
 	TeacherBalances = "teacherBalances",
+	TeacherInvoices = "teacherInvoices",
 	TeacherStudentRel = "teacherStudentRel",
 	Teachers = "teachers",
 	Users = "users",
@@ -86,8 +87,9 @@ export type OtpsRecord = {
 }
 
 export enum SuperusersRoleOptions {
-	"STAFF" = "STAFF",
-	"ADMIN" = "ADMIN",
+	"INVOICE_MANAGER" = "INVOICE_MANAGER",
+	"BALANCE_MANAGER" = "BALANCE_MANAGER",
+	"CLASS_MANAGER" = "CLASS_MANAGER",
 }
 export type SuperusersRecord = {
 	avatar?: string
@@ -136,21 +138,9 @@ export type DailyClassPackagesRecord = {
 	updated?: IsoDateString
 }
 
-export enum InvoicesUserTypeOptions {
-	"TEACHER" = "TEACHER",
-	"STUDENT" = "STUDENT",
-}
-export type InvoicesRecord = {
-	created?: IsoDateString
-	id: string
-	updated?: IsoDateString
-	userType: InvoicesUserTypeOptions
-}
-
 export enum NoticesUserTypeOptions {
 	"STUDENT" = "STUDENT",
 	"TEACHER" = "TEACHER",
-	"ADMIN" = "ADMIN",
 }
 export type NoticesRecord = {
 	created?: IsoDateString
@@ -199,6 +189,15 @@ export type StudentBalancesRecord = {
 	paymentInfo?: string
 	paymentMethod?: string
 	studentId?: RecordIdString
+	studentInvoiceId?: RecordIdString
+	updated?: IsoDateString
+}
+
+export type StudentInvoicesRecord = {
+	created?: IsoDateString
+	endDate?: IsoDateString
+	id: string
+	startDate?: IsoDateString
 	updated?: IsoDateString
 }
 
@@ -216,6 +215,15 @@ export type TeacherBalancesRecord = {
 	paymentInfo?: string
 	paymentMethod?: string
 	teacherId?: RecordIdString
+	teacherInvoiceId?: RecordIdString
+	updated?: IsoDateString
+}
+
+export type TeacherInvoicesRecord = {
+	created?: IsoDateString
+	endDate?: IsoDateString
+	id: string
+	startDate?: IsoDateString
 	updated?: IsoDateString
 }
 
@@ -262,13 +270,14 @@ export type OtpsResponse<Texpand = unknown> = Required<OtpsRecord> & BaseSystemF
 export type SuperusersResponse<Texpand = unknown> = Required<SuperusersRecord> & AuthSystemFields<Texpand>
 export type ClassLogsResponse<Texpand = unknown> = Required<ClassLogsRecord> & BaseSystemFields<Texpand>
 export type DailyClassPackagesResponse<Texpand = unknown> = Required<DailyClassPackagesRecord> & BaseSystemFields<Texpand>
-export type InvoicesResponse<Texpand = unknown> = Required<InvoicesRecord> & BaseSystemFields<Texpand>
 export type NoticesResponse<Texpand = unknown> = Required<NoticesRecord> & BaseSystemFields<Texpand>
 export type ResourcesResponse<Texpand = unknown> = Required<ResourcesRecord> & BaseSystemFields<Texpand>
 export type RoutinesResponse<Texpand = unknown> = Required<RoutinesRecord> & BaseSystemFields<Texpand>
 export type StudentBalancesResponse<Texpand = unknown> = Required<StudentBalancesRecord> & BaseSystemFields<Texpand>
+export type StudentInvoicesResponse<Texpand = unknown> = Required<StudentInvoicesRecord> & BaseSystemFields<Texpand>
 export type StudentsResponse<Texpand = unknown> = Required<StudentsRecord> & BaseSystemFields<Texpand>
 export type TeacherBalancesResponse<Texpand = unknown> = Required<TeacherBalancesRecord> & BaseSystemFields<Texpand>
+export type TeacherInvoicesResponse<Texpand = unknown> = Required<TeacherInvoicesRecord> & BaseSystemFields<Texpand>
 export type TeacherStudentRelResponse<Texpand = unknown> = Required<TeacherStudentRelRecord> & BaseSystemFields<Texpand>
 export type TeachersResponse<Texpand = unknown> = Required<TeachersRecord> & BaseSystemFields<Texpand>
 export type UsersResponse<Texpand = unknown> = Required<UsersRecord> & AuthSystemFields<Texpand>
@@ -283,13 +292,14 @@ export type CollectionRecords = {
 	_superusers: SuperusersRecord
 	classLogs: ClassLogsRecord
 	dailyClassPackages: DailyClassPackagesRecord
-	invoices: InvoicesRecord
 	notices: NoticesRecord
 	resources: ResourcesRecord
 	routines: RoutinesRecord
 	studentBalances: StudentBalancesRecord
+	studentInvoices: StudentInvoicesRecord
 	students: StudentsRecord
 	teacherBalances: TeacherBalancesRecord
+	teacherInvoices: TeacherInvoicesRecord
 	teacherStudentRel: TeacherStudentRelRecord
 	teachers: TeachersRecord
 	users: UsersRecord
@@ -303,13 +313,14 @@ export type CollectionResponses = {
 	_superusers: SuperusersResponse
 	classLogs: ClassLogsResponse
 	dailyClassPackages: DailyClassPackagesResponse
-	invoices: InvoicesResponse
 	notices: NoticesResponse
 	resources: ResourcesResponse
 	routines: RoutinesResponse
 	studentBalances: StudentBalancesResponse
+	studentInvoices: StudentInvoicesResponse
 	students: StudentsResponse
 	teacherBalances: TeacherBalancesResponse
+	teacherInvoices: TeacherInvoicesResponse
 	teacherStudentRel: TeacherStudentRelResponse
 	teachers: TeachersResponse
 	users: UsersResponse
@@ -326,13 +337,14 @@ export type TypedPocketBase = PocketBase & {
 	collection(idOrName: '_superusers'): RecordService<SuperusersResponse>
 	collection(idOrName: 'classLogs'): RecordService<ClassLogsResponse>
 	collection(idOrName: 'dailyClassPackages'): RecordService<DailyClassPackagesResponse>
-	collection(idOrName: 'invoices'): RecordService<InvoicesResponse>
 	collection(idOrName: 'notices'): RecordService<NoticesResponse>
 	collection(idOrName: 'resources'): RecordService<ResourcesResponse>
 	collection(idOrName: 'routines'): RecordService<RoutinesResponse>
 	collection(idOrName: 'studentBalances'): RecordService<StudentBalancesResponse>
+	collection(idOrName: 'studentInvoices'): RecordService<StudentInvoicesResponse>
 	collection(idOrName: 'students'): RecordService<StudentsResponse>
 	collection(idOrName: 'teacherBalances'): RecordService<TeacherBalancesResponse>
+	collection(idOrName: 'teacherInvoices'): RecordService<TeacherInvoicesResponse>
 	collection(idOrName: 'teacherStudentRel'): RecordService<TeacherStudentRelResponse>
 	collection(idOrName: 'teachers'): RecordService<TeachersResponse>
 	collection(idOrName: 'users'): RecordService<UsersResponse>
