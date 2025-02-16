@@ -38,6 +38,7 @@ cronAdd("remove-expired-teacher-student-class-logs", "*/1 * * * *", () => {
     console.log("Class logs cleaned 🙏")
 })
 
+// get logged in user data
 routerAdd("GET", "/api/self", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
@@ -147,7 +148,7 @@ routerAdd("GET", "/api/t/students", (c) => {
     return c.json(200, studentsInfo)
 })
 
-// create student routine
+// create student routine and related class logs
 // it need to use latest info so use teacher student rel for package
 routerAdd("POST", "/api/t/routine", (c) => {
     const userId = c.requestInfo().auth?.id
@@ -337,6 +338,7 @@ routerAdd("POST", "/api/t/routine", (c) => {
     })
 })
 
+// create custom class logs
 // it need to use latest info so use teacher student rel for package
 routerAdd("POST", "/api/t/class-logs", (c) => {
     const userId = c.requestInfo().auth?.id
@@ -364,14 +366,18 @@ routerAdd("POST", "/api/t/class-logs", (c) => {
 
     const data = new DynamicModel({
         dailyClassPackageId: '',
-        teacherId: ''
+        teacherId: '',
+        dailyClassTeachersPrice: '',
+        dailyClassStudentsPrice: ''
     })
 
     $app.db()
         .newQuery(`
             SELECT 
                 tsr.dailyClassPackageId,
-                t.id AS teacherId
+                t.id AS teacherId,
+                tsr.dailyClassTeachersPrice,
+                tsr.dailyClassStudentsPrice
             FROM users u 
             JOIN teachers t ON t.userId = u.id
             JOIN teacherStudentRel tsr ON tsr.teacherId = t.id 
@@ -424,14 +430,15 @@ routerAdd("POST", "/api/t/class-logs", (c) => {
             record.set("studentId", studentId)
             record.set("dailyClassPackageId", dailyClassPackageId)
             record.set("status", "CREATED")
-            // teachersPrice will be set when completed
-            // studentsPrice will be set when completed
+            record.set("teachersPrice", data.dailyClassTeachersPrice)
+            record.set("studentsPrice", data.dailyClassStudentsPrice)
             record.set("startedAt", startedAt)
             txDao.save(record)
         })
     })
 })
 
+// get class logs by filters
 routerAdd("POST", "/api/t/classes/filter", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
@@ -571,6 +578,7 @@ routerAdd("POST", "/api/t/classes/filter", (c) => {
     })
 })
 
+// get class logs by day
 routerAdd("POST", "/api/t/classes/day", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
@@ -664,6 +672,7 @@ routerAdd("POST", "/api/t/classes/day", (c) => {
     return c.json(200, classLogsInfo)
 })
 
+// get class logs by month
 routerAdd("POST", "/api/t/classes/month", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
@@ -763,6 +772,7 @@ routerAdd("POST", "/api/t/classes/month", (c) => {
     return c.json(200, classLogsInfo)
 })
 
+// get stats of class and earnings
 routerAdd("POST", "/api/t/classes/stats", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
