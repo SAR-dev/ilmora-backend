@@ -248,11 +248,11 @@ export type TeachersRecord = {
 
 export type UsersRecord = {
 	avatar?: string
-	country?: string
 	created?: IsoDateString
 	email: string
 	emailVisibility?: boolean
 	id: string
+	location?: string
 	name: string
 	password: string
 	tokenKey: string

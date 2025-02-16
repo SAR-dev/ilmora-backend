@@ -1,4 +1,28 @@
-// remove mismatched / expired class logs every minute every 1 minute
+// on teacher student rel update update class price of pending classes
+onRecordAfterUpdateSuccess((e) => {
+    $app.db()
+        .newQuery(`
+            UPDATE classLogs 
+            SET teachersPrice = {:teachersPrice}, 
+                studentsPrice = {:studentsPrice}, 
+                dailyClassPackageId = {:dailyClassPackageId} 
+            WHERE teacherId = {:teacherId}
+            AND studentId = {:studentId}
+            AND status = 'CREATED'
+        `)
+        .bind({
+            teacherId: e.record.get("teacherId"),
+            studentId: e.record.get("studentId"),
+            dailyClassPackageId: e.record.get("dailyClassPackageId"),
+            teachersPrice: e.record.get("dailyClassTeachersPrice"),
+            studentsPrice: e.record.get("dailyClassStudentsPrice")
+        })
+        .execute()
+
+    e.next()
+}, "teacherStudentRel")
+
+// remove mismatched / expired class logs every 1 minute
 cronAdd("remove-expired-teacher-student-class-logs", "*/1 * * * *", () => {
     $app.db()
         .newQuery(`
@@ -58,6 +82,7 @@ routerAdd("GET", "/api/self", (c) => {
     })
 })
 
+// get student list with routines
 // it need to use latest info so use teacher student rel for package
 routerAdd("GET", "/api/t/students", (c) => {
     const userId = c.requestInfo().auth?.id
@@ -68,7 +93,7 @@ routerAdd("GET", "/api/t/students", (c) => {
         name: '',
         packageName: '',
         packageClassMins: '',
-        country: '',
+        location: '',
         whatsAppNo: '',
         avatar: '',
         teachersPrice: '',
@@ -89,12 +114,12 @@ routerAdd("GET", "/api/t/students", (c) => {
             SELECT 
                 s.id ,
                 us.name ,
-                us.country ,
+                us.location ,
                 us.whatsAppNo ,
                 us.avatar ,
                 dcp.title AS packageName ,
                 dcp.classMins AS packageClassMins ,
-                dcp.teachersPrice ,
+                tsr.dailyClassTeachersPrice AS teachersPrice ,
                 COALESCE (r.utcOffset, '') AS utcOffset ,
                 COALESCE (r.satTime, '') AS satTime ,
                 COALESCE (r.sunTime, '') AS sunTime ,
@@ -122,6 +147,7 @@ routerAdd("GET", "/api/t/students", (c) => {
     return c.json(200, studentsInfo)
 })
 
+// create student routine
 // it need to use latest info so use teacher student rel for package
 routerAdd("POST", "/api/t/routine", (c) => {
     const userId = c.requestInfo().auth?.id
@@ -155,7 +181,9 @@ routerAdd("POST", "/api/t/routine", (c) => {
         teacherStudentRelId: '',
         dailyClassPackageId: '',
         routineId: '',
-        teacherId: ''
+        teacherId: '',
+        dailyClassTeachersPrice: '',
+        dailyClassStudentsPrice: ''
     })
 
     $app.db()
@@ -164,7 +192,9 @@ routerAdd("POST", "/api/t/routine", (c) => {
                 tsr.id AS teacherStudentRelId,
                 tsr.dailyClassPackageId,
                 COALESCE (r.id, '') AS routineId,
-                t.id AS teacherId
+                t.id AS teacherId,
+                tsr.dailyClassTeachersPrice,
+                tsr.dailyClassStudentsPrice
             FROM users u 
             JOIN teachers t ON t.userId = u.id
             JOIN teacherStudentRel tsr ON tsr.teacherId = t.id 
@@ -299,8 +329,8 @@ routerAdd("POST", "/api/t/routine", (c) => {
             record.set("studentId", studentId)
             record.set("dailyClassPackageId", dailyClassPackageId)
             record.set("status", "CREATED")
-            // teachersPrice will be set when completed
-            // studentsPrice will be set when completed
+            record.set("teachersPrice", data.dailyClassTeachersPrice)
+            record.set("studentsPrice", data.dailyClassStudentsPrice)
             record.set("startedAt", startedAt)
             txDao.save(record)
         })
@@ -486,7 +516,7 @@ routerAdd("POST", "/api/t/classes/filter", (c) => {
         finishedAt: '',
         status: '',
         studentName: '',
-        studentCountry: '',
+        studentLocation: '',
         studentUserId: '',
         studentUserAvatar: '',
         teachersPrice: '',
@@ -505,12 +535,12 @@ routerAdd("POST", "/api/t/classes/filter", (c) => {
                 cl.finishedAt ,
                 cl.status ,
                 su.name AS studentName ,
-                su.country AS studentCountry ,
+                su.location AS studentLocation ,
                 su.id AS studentUserId ,
                 su.whatsAppNo AS studentWhtsAppNo ,
                 COALESCE (su.avatar, '') AS studentUserAvatar ,
                 dcp.title AS packageName ,
-                dcp.teachersPrice ,
+                cl.teachersPrice ,
                 dcp.classMins ,
                 cl.classNote ,
                 COALESCE (su.utcOffset, '') AS utcOffset
@@ -584,7 +614,7 @@ routerAdd("POST", "/api/t/classes/day", (c) => {
         finishedAt: '',
         status: '',
         studentName: '',
-        studentCountry: '',
+        studentLocation: '',
         studentUserId: '',
         studentUserAvatar: '',
         teachersPrice: '',
@@ -605,12 +635,12 @@ routerAdd("POST", "/api/t/classes/day", (c) => {
                 cl.finishedAt ,
                 cl.status ,
                 su.name AS studentName ,
-                su.country AS studentCountry ,
+                su.location AS studentLocation ,
                 su.id AS studentUserId ,
                 su.whatsAppNo AS studentWhtsAppNo ,
                 COALESCE (su.avatar, '') AS studentUserAvatar ,
                 dcp.title AS packageName ,
-                dcp.teachersPrice ,
+                cl.teachersPrice ,
                 dcp.classMins ,
                 cl.classNote ,
                 COALESCE (su.utcOffset, '') AS utcOffset
@@ -683,7 +713,7 @@ routerAdd("POST", "/api/t/classes/month", (c) => {
         finishedAt: '',
         status: '',
         studentName: '',
-        studentCountry: '',
+        studentLocation: '',
         studentUserId: '',
         studentUserAvatar: '',
         teachersPrice: '',
@@ -704,12 +734,12 @@ routerAdd("POST", "/api/t/classes/month", (c) => {
                 cl.finishedAt ,
                 cl.status ,
                 su.name AS studentName ,
-                su.country AS studentCountry ,
+                su.location AS studentLocation ,
                 su.id AS studentUserId ,
                 su.whatsAppNo AS studentWhtsAppNo ,
                 COALESCE (su.avatar, '') AS studentUserAvatar ,
                 dcp.title AS packageName ,
-                dcp.teachersPrice ,
+                cl.teachersPrice ,
                 dcp.classMins ,
                 cl.classNote ,
                 COALESCE (su.utcOffset, '') AS utcOffset
@@ -810,12 +840,10 @@ routerAdd("POST", "/api/t/classes/stats", (c) => {
         .newQuery(`
             SELECT
                 COALESCE (count(cl.id), 0) AS totalClass ,
-                COALESCE (sum(dcp.teachersPrice), 0) AS totalPrice
+                COALESCE (sum(cl.teachersPrice), 0) AS totalPrice
             FROM classLogs cl 
             JOIN teachers t ON cl.teacherId = t.id 
             JOIN users tu ON tu.id = t.userId 
-            JOIN teacherStudentRel tsr ON tsr.teacherId = cl.teacherId AND tsr.studentId = cl.studentId
-            JOIN dailyClassPackages dcp ON tsr.dailyClassPackageId = dcp.id  
             WHERE tu.id = {:userId}
             AND cl.status != 'FINISHED'
             AND cl.startedAt BETWEEN {:minStartedAt} AND {:maxStartedAt}
@@ -935,12 +963,12 @@ routerAdd("GET", "/api/t/class-logs/{id}", (c) => {
         studentName: '',
         studentAvatar: '',
         studentWhatsAppNo: '',
-        studentCountry: '',
+        studentLocation: '',
         studentOffset: '',
         teacherName: '',
         teacherAvatar: '',
         teacherWhatsAppNo: '',
-        teacherCountry: '',
+        teacherLocation: '',
         teacherOffset: '',
         startedAt: '',
         finishedAt: '',
@@ -960,12 +988,12 @@ routerAdd("GET", "/api/t/class-logs/{id}", (c) => {
                 su.name AS studentName ,
                 su.avatar AS studentAvatar ,
                 su.whatsAppNo AS studentWhatsAppNo ,
-                su.country AS studentCountry ,
+                su.location AS studentLocation ,
                 su.utcOffset AS studentOffset ,
                 tu.name AS teacherName ,
                 tu.avatar AS teacherAvatar ,
                 tu.whatsAppNo AS teacherWhatsAppNo ,
-                tu.country AS teacherCountry ,
+                tu.location AS teacherLocation ,
                 tu.utcOffset AS teacherOffset ,
                 cl.startedAt ,
                 COALESCE (cl.finishedAt, '') AS finishedAt ,
@@ -974,7 +1002,7 @@ routerAdd("GET", "/api/t/class-logs/{id}", (c) => {
                 dcp.id AS packageId ,
                 dcp.title AS packageTitle ,
                 dcp.classMins ,
-                dcp.teachersPrice ,
+                cl.teachersPrice ,
                 COALESCE (tsr.classLink, '') AS classLink
             FROM classLogs cl 
             JOIN teachers t ON cl.teacherId = t.id 
@@ -1033,17 +1061,7 @@ routerAdd("POST", "/api/t/class-logs/{id}/finish", (c) => {
             UPDATE classLogs 
             SET 
                 finishedAt = CURRENT_TIMESTAMP , 
-                status = 'FINISHED' ,
-                teachersPrice = (
-                    SELECT dcp.teachersPrice FROM classLogs cl 
-                    JOIN dailyClassPackages dcp ON dcp.id = cl.dailyClassPackageId 
-                    WHERE cl.id = {:id}
-                ),
-                studentsPrice = (
-                    SELECT dcp.studentsPrice FROM classLogs cl 
-                    JOIN dailyClassPackages dcp ON dcp.id = cl.dailyClassPackageId 
-                    WHERE cl.id = {:id}
-                )
+                status = 'FINISHED'
             WHERE id = {:id}
             AND status = 'STARTED'
             AND teacherId = (
@@ -1117,14 +1135,16 @@ routerAdd("POST", "/api/t/class-logs/{id}/package", (c) => {
 
     const invoiceInfo = new DynamicModel({
         studentInvoiceId: '',
-        teacherInvoiceId: ''
+        teacherInvoiceId: '',
+        dailyClassPackageId: ''
     })
 
     $app.db()
         .newQuery(`
             SELECT 
                 COALESCE (si.id, '') AS studentInvoiceId,
-                COALESCE (ti.id, '') AS teacherInvoiceId
+                COALESCE (ti.id, '') AS teacherInvoiceId,
+                cl.dailyClassPackageId
             FROM classLogs cl 
             LEFT JOIN invoices si ON si.id = cl.studentInvoiceId 
             LEFT JOIN invoices ti ON ti.id = cl.teacherInvoiceId 
@@ -1139,8 +1159,9 @@ routerAdd("POST", "/api/t/class-logs/{id}/package", (c) => {
         throw ApiError(500, "Class has already been invoiced!")
     }
 
-    $app.db()
-        .newQuery(`
+    if (invoiceInfo.dailyClassPackageId != dailyClassPackageId) {
+        $app.db()
+            .newQuery(`
             UPDATE classLogs 
             SET 
                 dailyClassPackageId = {:dailyClassPackageId} ,
@@ -1156,12 +1177,13 @@ routerAdd("POST", "/api/t/class-logs/{id}/package", (c) => {
                 SELECT id FROM teachers WHERE userId = {:userId}
             )
         `)
-        .bind({
-            id,
-            userId,
-            dailyClassPackageId
-        })
-        .execute()
+            .bind({
+                id,
+                userId,
+                dailyClassPackageId
+            })
+            .execute()
+    }
 
     return c.json(200)
 })
