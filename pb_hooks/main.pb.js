@@ -86,6 +86,10 @@ routerAdd("GET", "/api/self", (c) => {
     })
 })
 
+// ======================================================================
+// TEACHER API
+// ======================================================================
+
 // get student list with routines
 // it need to use latest info so use teacher student rel for package
 routerAdd("GET", "/api/t/students", (c) => {
@@ -1209,6 +1213,10 @@ routerAdd("POST", "/api/t/class-logs/{id}/package", (c) => {
     return c.json(200)
 })
 
+// ======================================================================
+// STUDENT API
+// ======================================================================
+
 routerAdd("GET", "/api/s/notices", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
@@ -1244,3 +1252,13 @@ routerAdd("GET", "/api/s/notices", (c) => {
 
     return c.json(200, noticeInfo)
 })
+
+
+// ======================================================================
+// ADMIN API
+// ======================================================================
+
+// routerAdd("POST", "/api/a/student", (c) => {
+//     const isSuperUser = c.hasSuperuserAuth()
+//     if (!isSuperUser) throw ForbiddenError()
+// })
