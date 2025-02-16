@@ -53,22 +53,25 @@ routerAdd("GET", "/api/self", (c) => {
     $app.db()
         .newQuery(`
             SELECT 
-                COALESCE(
+                COALESCE (
                     (SELECT CASE WHEN t.id IS NOT NULL THEN TRUE ELSE FALSE END 
                     FROM teachers t WHERE t.userId = {:userId} 
                     LIMIT 1), FALSE
                 ) AS isTeacher,
-                COALESCE(
+                COALESCE (
                     (SELECT CASE WHEN s.id IS NOT NULL THEN TRUE ELSE FALSE END 
                     FROM students s WHERE s.userId = {:userId}
                     LIMIT 1), FALSE
                 ) AS isStudent,
-                COALESCE(
+                COALESCE (
                     (SELECT CASE WHEN s.id IS NOT NULL THEN TRUE ELSE FALSE END 
                     FROM _superusers s WHERE s.id = {:userId}
                     LIMIT 1), FALSE
                 ) AS isSuperUser,
-                (SELECT COALESCE (s.role, '') FROM _superusers s WHERE s.id = {:userId}) AS superUserRole
+                COALESCE (
+                    (SELECT s.role FROM _superusers s WHERE s.id = {:userId})
+                    , ''
+                ) AS superUserRole
         `)
         .bind({
             userId
