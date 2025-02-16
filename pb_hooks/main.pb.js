@@ -871,6 +871,7 @@ routerAdd("POST", "/api/t/classes/stats", (c) => {
     })
 })
 
+// get notices
 routerAdd("GET", "/api/t/notices", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
@@ -907,6 +908,7 @@ routerAdd("GET", "/api/t/notices", (c) => {
     return c.json(200, noticeInfo)
 })
 
+// get class note
 routerAdd("GET", "/api/t/class-notes/{id}", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
@@ -936,6 +938,7 @@ routerAdd("GET", "/api/t/class-notes/{id}", (c) => {
     return c.json(200, classNoteInfo.classNote)
 })
 
+// update class note
 routerAdd("POST", "/api/t/class-notes/{id}", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
@@ -962,6 +965,7 @@ routerAdd("POST", "/api/t/class-notes/{id}", (c) => {
     return c.json(200)
 })
 
+// get class logs id
 routerAdd("GET", "/api/t/class-logs/{id}", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
@@ -1033,6 +1037,7 @@ routerAdd("GET", "/api/t/class-logs/{id}", (c) => {
     return c.json(200, classLogInfo)
 })
 
+// start class
 routerAdd("POST", "/api/t/class-logs/{id}/start", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
@@ -1060,6 +1065,7 @@ routerAdd("POST", "/api/t/class-logs/{id}/start", (c) => {
     return c.json(200)
 })
 
+// finish class
 routerAdd("POST", "/api/t/class-logs/{id}/finish", (c) => {
     const userId = c.requestInfo().auth?.id
     if (!userId) throw ForbiddenError()
@@ -1087,6 +1093,7 @@ routerAdd("POST", "/api/t/class-logs/{id}/finish", (c) => {
     return c.json(200)
 })
 
+// delete class
 // Once invoice has been issued you can not delete class
 routerAdd("POST", "/api/t/class-logs/{id}/delete", (c) => {
     const userId = c.requestInfo().auth?.id
@@ -1135,6 +1142,7 @@ routerAdd("POST", "/api/t/class-logs/{id}/delete", (c) => {
     return c.json(200)
 })
 
+// update calss package
 // Once invoice has been issued you can not update daily package
 routerAdd("POST", "/api/t/class-logs/{id}/package", (c) => {
     const userId = c.requestInfo().auth?.id
