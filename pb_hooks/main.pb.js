@@ -1258,7 +1258,168 @@ routerAdd("GET", "/api/s/notices", (c) => {
 // ADMIN API
 // ======================================================================
 
-// routerAdd("POST", "/api/a/student", (c) => {
-//     const isSuperUser = c.hasSuperuserAuth()
-//     if (!isSuperUser) throw ForbiddenError()
-// })
+// get list of students with last invoice data
+routerAdd("GET", "/api/a/student-last-invoices", (c) => {
+    const isSuperUser = c.hasSuperuserAuth()
+    if (!isSuperUser) throw ForbiddenError()
+
+    let pageSize = c.request.url.query().get("pageSize");
+    let pageNo = c.request.url.query().get("pageNo");
+    const studentId = c.request.url.query().get("studentId")
+
+    pageSize = Number(pageSize) > 0 && Number(pageSize) < 100 ? Number(pageSize) : 50;
+    pageNo = Number(pageNo) > 0 ? Number(pageNo) : 1;
+
+    const filters = []
+    if (studentId?.length > 0) filters.push(`s.id = '${studentId}'`)
+    const filter = filters.join(" AND ")
+
+    const counted = new DynamicModel({
+        totalItems: ''
+    })
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                COALESCE(count(s.id), 0) AS totalItems
+            FROM students s 
+            JOIN users u ON u.id = s.userId 
+            ${filter.length > 0 ? "WHERE" : ""}
+            ${filter}
+        `)
+        .one(counted)
+
+    const totalItems = Number(counted.totalItems)
+
+    const studentInvoiceInfo = arrayOf(new DynamicModel({
+        userId: '',
+        studentId: '',
+        studentInvoiceId: '',
+        name: '',
+        email: '',
+        location: '',
+        whatsAppNo: '',
+        startDate: '',
+        endDate: '',
+        created: ''
+    }))
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                u.id AS userId ,
+                s.id AS studentId ,
+                COALESCE (si.id, '') AS studentInvoiceId ,
+                u.name ,
+                u.email ,
+                u.whatsAppNo ,
+                u.location ,
+                COALESCE (si.startDate, '') AS startDate ,
+                COALESCE (si.endDate, '') AS endDate ,
+                COALESCE (si.created, '') AS created
+            FROM students s 
+            JOIN users u ON u.id = s.userId 
+            LEFT JOIN classLogs cl ON s.id = cl.studentId
+            LEFT JOIN studentInvoices si ON si.id = cl.studentInvoiceId AND si.created = (
+                SELECT MAX(si2.created) FROM studentInvoices si2 WHERE si2.id = cl.studentInvoiceId
+            )
+            ${filter.length > 0 ? "WHERE" : ""}
+            ${filter}
+            ORDER BY si.created DESC
+            LIMIT ${Number(pageSize)} OFFSET ${(Number(pageNo) - 1) * Number(pageSize)}
+        `)
+        .all(studentInvoiceInfo)
+
+    return c.json(200, {
+        pageNo: pageNo,
+        pageSize: pageSize,
+        totalPages: Math.ceil(totalItems / pageSize),
+        totalItems: totalItems,
+        hasNext: pageNo < Math.ceil(totalItems / pageSize),
+        hasPrev: pageNo > 1,
+        items: studentInvoiceInfo
+    })
+})
+
+// get list of teachers with last invoice data
+routerAdd("GET", "/api/a/teacher-last-invoices", (c) => {
+    const isSuperUser = c.hasSuperuserAuth()
+    if (!isSuperUser) throw ForbiddenError()
+
+    let pageSize = c.request.url.query().get("pageSize");
+    let pageNo = c.request.url.query().get("pageNo");
+    const teacherId = c.request.url.query().get("teacherId")
+
+    pageSize = Number(pageSize) > 0 && Number(pageSize) < 100 ? Number(pageSize) : 50;
+    pageNo = Number(pageNo) > 0 ? Number(pageNo) : 1;
+
+    const filters = []
+    if (teacherId?.length > 0) filters.push(`s.id = '${teacherId}'`)
+    const filter = filters.join(" AND ")
+
+    const counted = new DynamicModel({
+        totalItems: ''
+    })
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                COALESCE(count(t.id), 0) AS totalItems
+            FROM teachers t 
+            JOIN users u ON u.id = t.userId 
+            ${filter.length > 0 ? "WHERE" : ""}
+            ${filter}
+        `)
+        .one(counted)
+
+    const totalItems = Number(counted.totalItems)
+
+    const teacherInvoiceInfo = arrayOf(new DynamicModel({
+        userId: '',
+        teacherId: '',
+        teacherInvoiceId: '',
+        name: '',
+        email: '',
+        location: '',
+        whatsAppNo: '',
+        startDate: '',
+        endDate: '',
+        created: ''
+    }))
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                u.id AS userId ,
+                t.id AS teacherId ,
+                COALESCE (ti.id, '') AS teacherInvoiceId ,
+                u.name ,
+                u.email ,
+                u.whatsAppNo ,
+                u.location ,
+                COALESCE (ti.startDate, '') AS startDate ,
+                COALESCE (ti.endDate, '') AS endDate ,
+                COALESCE (ti.created, '') AS created
+            FROM teachers t 
+            JOIN users u ON u.id = t.userId 
+            LEFT JOIN classLogs cl ON t.id = cl.teacherId
+            LEFT JOIN teacherInvoices ti ON ti.id = cl.teacherInvoiceId AND ti.created = (
+                SELECT MAX(ti2.created) FROM teacherInvoices ti2 WHERE ti2.id = cl.teacherInvoiceId
+            )
+            ${filter.length > 0 ? "WHERE" : ""}
+            ${filter}
+            ORDER BY ti.created DESC
+            LIMIT ${Number(pageSize)} OFFSET ${(Number(pageNo) - 1) * Number(pageSize)}
+        `)
+        .all(teacherInvoiceInfo)
+
+    return c.json(200, {
+        pageNo: pageNo,
+        pageSize: pageSize,
+        totalPages: Math.ceil(totalItems / pageSize),
+        totalItems: totalItems,
+        hasNext: pageNo < Math.ceil(totalItems / pageSize),
+        hasPrev: pageNo > 1,
+        items: teacherInvoiceInfo
+    })
+})
