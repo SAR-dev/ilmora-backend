@@ -1304,24 +1304,29 @@ routerAdd("GET", "/api/a/student-last-invoices", (c) => {
 
     $app.db()
         .newQuery(`
+            WITH rankedInvoice AS (
+                SELECT 
+                    cl.studentId,
+                    si.id AS studentInvoiceId,
+                    si.created,
+                    ROW_NUMBER() OVER (PARTITION BY cl.studentId ORDER BY si.created DESC) AS rn
+                FROM classLogs cl
+                LEFT JOIN studentInvoices si ON si.id = cl.studentInvoiceId
+            )
             SELECT DISTINCT
                 u.id AS userId ,
                 s.id AS studentId ,
-                COALESCE (si.id, '') AS studentInvoiceId ,
+                COALESCE (ri.studentInvoiceId, '') AS studentInvoiceId ,
                 u.name ,
                 u.email ,
                 u.whatsAppNo ,
                 u.location ,
-                COALESCE (si.created, '') AS created
+                COALESCE (ri.created, '') AS created
             FROM students s 
             JOIN users u ON u.id = s.userId 
-            LEFT JOIN classLogs cl ON s.id = cl.studentId
-            LEFT JOIN studentInvoices si ON si.id = cl.studentInvoiceId AND si.created = (
-                SELECT MAX(si2.created) FROM studentInvoices si2 WHERE si2.id = cl.studentInvoiceId
-            )
+            LEFT JOIN rankedInvoice ri ON s.id = ri.studentId AND ri.rn = 1
             ${filter.length > 0 ? "WHERE" : ""}
             ${filter}
-            ORDER BY si.created DESC
             LIMIT ${Number(pageSize)} OFFSET ${(Number(pageNo) - 1) * Number(pageSize)}
         `)
         .all(studentInvoiceInfo)
@@ -1350,7 +1355,7 @@ routerAdd("GET", "/api/a/teacher-last-invoices", (c) => {
     pageNo = Number(pageNo) > 0 ? Number(pageNo) : 1;
 
     const filters = []
-    if (teacherId?.length > 0) filters.push(`s.id = '${teacherId}'`)
+    if (teacherId?.length > 0) filters.push(`t.id = '${teacherId}'`)
     const filter = filters.join(" AND ")
 
     const counted = new DynamicModel({
@@ -1383,24 +1388,29 @@ routerAdd("GET", "/api/a/teacher-last-invoices", (c) => {
 
     $app.db()
         .newQuery(`
+            WITH rankedInvoice AS (
+                SELECT 
+                    cl.teacherId,
+                    ti.id AS teacherInvoiceId,
+                    ti.created,
+                    ROW_NUMBER() OVER (PARTITION BY cl.teacherId ORDER BY ti.created DESC) AS rn
+                FROM classLogs cl
+                LEFT JOIN teacherInvoices ti ON ti.id = cl.teacherInvoiceId
+            )
             SELECT DISTINCT
                 u.id AS userId ,
                 t.id AS teacherId ,
-                COALESCE (ti.id, '') AS teacherInvoiceId ,
+                COALESCE (ri.teacherInvoiceId, '') AS teacherInvoiceId ,
                 u.name ,
                 u.email ,
                 u.whatsAppNo ,
                 u.location ,
-                COALESCE (ti.created, '') AS created
+                COALESCE (ri.created, '') AS created
             FROM teachers t 
             JOIN users u ON u.id = t.userId 
-            LEFT JOIN classLogs cl ON t.id = cl.teacherId
-            LEFT JOIN teacherInvoices ti ON ti.id = cl.teacherInvoiceId AND ti.created = (
-                SELECT MAX(ti2.created) FROM teacherInvoices ti2 WHERE ti2.id = cl.teacherInvoiceId
-            )
+            LEFT JOIN rankedInvoice ri ON t.id = ri.teacherId AND ri.rn = 1
             ${filter.length > 0 ? "WHERE" : ""}
             ${filter}
-            ORDER BY ti.created DESC
             LIMIT ${Number(pageSize)} OFFSET ${(Number(pageNo) - 1) * Number(pageSize)}
         `)
         .all(teacherInvoiceInfo)
@@ -1416,6 +1426,7 @@ routerAdd("GET", "/api/a/teacher-last-invoices", (c) => {
     })
 })
 
+// create student invoices
 routerAdd("POST", "/api/a/student-invoices", (c) => {
     const isSuperUser = c.hasSuperuserAuth()
     if (!isSuperUser) throw ForbiddenError()
@@ -1444,6 +1455,42 @@ routerAdd("POST", "/api/a/student-invoices", (c) => {
             `)
             .bind({
                 studentInvoiceId
+            })
+            .execute()
+    })
+
+    return c.json(200)
+})
+
+// create teacher invoices
+routerAdd("POST", "/api/a/teacher-invoices", (c) => {
+    const isSuperUser = c.hasSuperuserAuth()
+    if (!isSuperUser) throw ForbiddenError()
+
+    const { teacherIds } = c.requestInfo().body
+    if(teacherIds.length == 0) return;
+
+    $app.runInTransaction((txDao) => {
+        // create student invoice
+        const invoiceCollection = txDao.findCollectionByNameOrId("teacherInvoices")
+        const invoiceRecord = new Record(invoiceCollection)
+        txDao.save(invoiceRecord)
+
+        // get student invoice id
+        const teacherInvoiceId = invoiceRecord.get("id")
+
+        // populate class logs
+        const filter = teacherIds.map(e => `'${e}'`).join(",")
+        txDao.db()
+            .newQuery(`
+                UPDATE classLogs 
+                SET teacherInvoiceId = {:teacherInvoiceId}
+                WHERE status = 'FINISHED'
+                AND teacherInvoiceId = ''
+                AND teacherId IN (${filter})
+            `)
+            .bind({
+                teacherInvoiceId
             })
             .execute()
     })
