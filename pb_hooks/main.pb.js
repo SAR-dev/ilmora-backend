@@ -28,10 +28,10 @@ cronAdd("remove-expired-teacher-student-class-logs", "*/1 * * * *", () => {
         .newQuery(`
             DELETE FROM classLogs 
             WHERE status = 'CREATED' 
-            AND EXISTS (
+            AND NOT EXISTS (
                 SELECT 1 FROM teacherStudentRel tsr 
                 WHERE tsr.studentId = classLogs.studentId 
-                AND tsr.teacherId != classLogs.teacherId
+                AND tsr.teacherId = classLogs.teacherId
             )
         `)
         .execute()
@@ -1299,14 +1299,12 @@ routerAdd("GET", "/api/a/student-last-invoices", (c) => {
         email: '',
         location: '',
         whatsAppNo: '',
-        startDate: '',
-        endDate: '',
         created: ''
     }))
 
     $app.db()
         .newQuery(`
-            SELECT 
+            SELECT DISTINCT
                 u.id AS userId ,
                 s.id AS studentId ,
                 COALESCE (si.id, '') AS studentInvoiceId ,
@@ -1314,8 +1312,6 @@ routerAdd("GET", "/api/a/student-last-invoices", (c) => {
                 u.email ,
                 u.whatsAppNo ,
                 u.location ,
-                COALESCE (si.startDate, '') AS startDate ,
-                COALESCE (si.endDate, '') AS endDate ,
                 COALESCE (si.created, '') AS created
             FROM students s 
             JOIN users u ON u.id = s.userId 
@@ -1382,14 +1378,12 @@ routerAdd("GET", "/api/a/teacher-last-invoices", (c) => {
         email: '',
         location: '',
         whatsAppNo: '',
-        startDate: '',
-        endDate: '',
         created: ''
     }))
 
     $app.db()
         .newQuery(`
-            SELECT 
+            SELECT DISTINCT
                 u.id AS userId ,
                 t.id AS teacherId ,
                 COALESCE (ti.id, '') AS teacherInvoiceId ,
@@ -1397,8 +1391,6 @@ routerAdd("GET", "/api/a/teacher-last-invoices", (c) => {
                 u.email ,
                 u.whatsAppNo ,
                 u.location ,
-                COALESCE (ti.startDate, '') AS startDate ,
-                COALESCE (ti.endDate, '') AS endDate ,
                 COALESCE (ti.created, '') AS created
             FROM teachers t 
             JOIN users u ON u.id = t.userId 
@@ -1422,4 +1414,39 @@ routerAdd("GET", "/api/a/teacher-last-invoices", (c) => {
         hasPrev: pageNo > 1,
         items: teacherInvoiceInfo
     })
+})
+
+routerAdd("POST", "/api/a/student-invoices", (c) => {
+    const isSuperUser = c.hasSuperuserAuth()
+    if (!isSuperUser) throw ForbiddenError()
+
+    const { studentIds } = c.requestInfo().body
+    if(studentIds.length == 0) return;
+
+    $app.runInTransaction((txDao) => {
+        // create student invoice
+        const invoiceCollection = txDao.findCollectionByNameOrId("studentInvoices")
+        const invoiceRecord = new Record(invoiceCollection)
+        txDao.save(invoiceRecord)
+
+        // get student invoice id
+        const studentInvoiceId = invoiceRecord.get("id")
+
+        // populate class logs
+        const filter = studentIds.map(e => `'${e}'`).join(",")
+        txDao.db()
+            .newQuery(`
+                UPDATE classLogs 
+                SET studentInvoiceId = {:studentInvoiceId}
+                WHERE status = 'FINISHED'
+                AND studentInvoiceId = ''
+                AND studentId IN (${filter})
+            `)
+            .bind({
+                studentInvoiceId
+            })
+            .execute()
+    })
+
+    return c.json(200)
 })

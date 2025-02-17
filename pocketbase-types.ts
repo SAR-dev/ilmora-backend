@@ -195,9 +195,7 @@ export type StudentBalancesRecord = {
 
 export type StudentInvoicesRecord = {
 	created?: IsoDateString
-	endDate?: IsoDateString
 	id: string
-	startDate?: IsoDateString
 	updated?: IsoDateString
 }
 
@@ -221,9 +219,7 @@ export type TeacherBalancesRecord = {
 
 export type TeacherInvoicesRecord = {
 	created?: IsoDateString
-	endDate?: IsoDateString
 	id: string
-	startDate?: IsoDateString
 	updated?: IsoDateString
 }
 
@@ -231,8 +227,8 @@ export type TeacherStudentRelRecord = {
 	classLink?: string
 	created?: IsoDateString
 	dailyClassPackageId: RecordIdString
-	dailyClassStudentsPrice?: number
-	dailyClassTeachersPrice?: number
+	dailyClassStudentsPrice: number
+	dailyClassTeachersPrice: number
 	id: string
 	studentId: RecordIdString
 	teacherId: RecordIdString
