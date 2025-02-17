@@ -1294,7 +1294,6 @@ routerAdd("GET", "/api/a/student-last-invoices", (c) => {
     const studentInvoiceInfo = arrayOf(new DynamicModel({
         userId: '',
         studentId: '',
-        studentInvoiceId: '',
         name: '',
         email: '',
         location: '',
@@ -1304,29 +1303,22 @@ routerAdd("GET", "/api/a/student-last-invoices", (c) => {
 
     $app.db()
         .newQuery(`
-            WITH rankedInvoice AS (
-                SELECT 
-                    cl.studentId,
-                    si.id AS studentInvoiceId,
-                    si.created,
-                    ROW_NUMBER() OVER (PARTITION BY cl.studentId ORDER BY si.created DESC) AS rn
-                FROM classLogs cl
-                LEFT JOIN studentInvoices si ON si.id = cl.studentInvoiceId
-            )
-            SELECT DISTINCT
+            SELECT
                 u.id AS userId ,
                 s.id AS studentId ,
-                COALESCE (ri.studentInvoiceId, '') AS studentInvoiceId ,
                 u.name ,
                 u.email ,
                 u.whatsAppNo ,
                 u.location ,
-                COALESCE (ri.created, '') AS created
+                COALESCE (MAX (si.created), '') AS created
             FROM students s 
             JOIN users u ON u.id = s.userId 
-            LEFT JOIN rankedInvoice ri ON s.id = ri.studentId AND ri.rn = 1
+            LEFT JOIN classLogs cl ON cl.studentId = s.id 
+            LEFT JOIN studentInvoices si ON si.id = cl.studentInvoiceId 
             ${filter.length > 0 ? "WHERE" : ""}
             ${filter}
+            GROUP BY s.id 
+            ORDER BY (CASE WHEN MAX (si.created) IS NULL THEN 0 ELSE 1 END), MAX (si.created) DESC
             LIMIT ${Number(pageSize)} OFFSET ${(Number(pageNo) - 1) * Number(pageSize)}
         `)
         .all(studentInvoiceInfo)
@@ -1378,7 +1370,6 @@ routerAdd("GET", "/api/a/teacher-last-invoices", (c) => {
     const teacherInvoiceInfo = arrayOf(new DynamicModel({
         userId: '',
         teacherId: '',
-        teacherInvoiceId: '',
         name: '',
         email: '',
         location: '',
@@ -1388,29 +1379,22 @@ routerAdd("GET", "/api/a/teacher-last-invoices", (c) => {
 
     $app.db()
         .newQuery(`
-            WITH rankedInvoice AS (
-                SELECT 
-                    cl.teacherId,
-                    ti.id AS teacherInvoiceId,
-                    ti.created,
-                    ROW_NUMBER() OVER (PARTITION BY cl.teacherId ORDER BY ti.created DESC) AS rn
-                FROM classLogs cl
-                LEFT JOIN teacherInvoices ti ON ti.id = cl.teacherInvoiceId
-            )
-            SELECT DISTINCT
+            SELECT
                 u.id AS userId ,
                 t.id AS teacherId ,
-                COALESCE (ri.teacherInvoiceId, '') AS teacherInvoiceId ,
                 u.name ,
                 u.email ,
                 u.whatsAppNo ,
                 u.location ,
-                COALESCE (ri.created, '') AS created
+                COALESCE (MAX (ti.created), '') AS created
             FROM teachers t 
             JOIN users u ON u.id = t.userId 
-            LEFT JOIN rankedInvoice ri ON t.id = ri.teacherId AND ri.rn = 1
+            LEFT JOIN classLogs cl ON cl.teacherId = t.id 
+            LEFT JOIN teacherInvoices ti ON ti.id = cl.teacherInvoiceId 
             ${filter.length > 0 ? "WHERE" : ""}
             ${filter}
+            GROUP BY t.id
+            ORDER BY (CASE WHEN MAX (ti.created) IS NULL THEN 0 ELSE 1 END), MAX (ti.created) DESC
             LIMIT ${Number(pageSize)} OFFSET ${(Number(pageNo) - 1) * Number(pageSize)}
         `)
         .all(teacherInvoiceInfo)
@@ -1497,3 +1481,7 @@ routerAdd("POST", "/api/a/teacher-invoices", (c) => {
 
     return c.json(200)
 })
+
+// rollback student invoice
+// simply remove the id from class log
+// and remove invoice 
