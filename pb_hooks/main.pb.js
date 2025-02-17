@@ -284,7 +284,10 @@ routerAdd("POST", "/api/t/routine", (c) => {
             const foundIndex = weekdays.findIndex(e => e.dayOfWeek == dayOfWeek)
             if (foundIndex != -1) {
                 const adjustedDate = new Date(start);
-                adjustedDate.setMinutes(weekdays[foundIndex].hh * 60 + weekdays[foundIndex].mm + totalOffsetMinutes);
+                const hours = Math.floor((weekdays[foundIndex].hh * 60 + weekdays[foundIndex].mm + totalOffsetMinutes)/60)
+                const minutes = (weekdays[foundIndex].hh * 60 + weekdays[foundIndex].mm + totalOffsetMinutes)%60
+                adjustedDate.setHours(hours)
+                adjustedDate.setMinutes(minutes);
                 result.push(adjustedDate.toISOString().replace("T", " "));
             }
             start.setUTCDate(start.getUTCDate() + 1);
@@ -420,7 +423,10 @@ routerAdd("POST", "/api/t/class-logs", (c) => {
 
         logs.forEach(log => {
             const adjustedDate = new Date(log.date)
-            adjustedDate.setMinutes(Number(log.time.split(":")[0]) * 60 + Number(log.time.split(":")[1]) + totalOffsetMinutes);
+            const hours = Math.floor((Number(log.time.split(":")[0]) * 60 + Number(log.time.split(":")[1]) + totalOffsetMinutes)/60)
+            const minutes = (Number(log.time.split(":")[0]) * 60 + Number(log.time.split(":")[1]) + totalOffsetMinutes)%60
+            adjustedDate.setHours(hours)
+            adjustedDate.setMinutes(minutes);
             result.push(adjustedDate.toISOString().replace("T", " "));
         })
 
@@ -1537,3 +1543,8 @@ routerAdd("POST", "/api/a/teacher-invoices-rollback", (c) => {
 
     return c.json(200)
 })
+
+// get student invoice list
+// get teacher invoice list
+// get student invoice details
+// get teacher invoice details
