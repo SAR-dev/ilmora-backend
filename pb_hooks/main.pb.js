@@ -1483,5 +1483,57 @@ routerAdd("POST", "/api/a/teacher-invoices", (c) => {
 })
 
 // rollback student invoice
-// simply remove the id from class log
-// and remove invoice 
+routerAdd("POST", "/api/a/student-invoices-rollback", (c) => {
+    const isSuperUser = c.hasSuperuserAuth()
+    if (!isSuperUser) throw ForbiddenError()
+
+    const { studentInvoiceId } = c.requestInfo().body
+    
+    $app.runInTransaction((txDao) => {
+        // remove student invoice id from class logs
+        txDao.db()
+            .newQuery(`
+                UPDATE classLogs 
+                SET studentInvoiceId = ''
+                WHERE studentInvoiceId = {:studentInvoiceId}
+            `)
+            .bind({
+                studentInvoiceId
+            })
+            .execute()
+
+        // delete student invoice
+        const record = txDao.findRecordById("studentInvoices", studentInvoiceId)
+        txDao.delete(record)
+    })
+
+    return c.json(200)
+})
+
+// rollback teacher invoice
+routerAdd("POST", "/api/a/teacher-invoices-rollback", (c) => {
+    const isSuperUser = c.hasSuperuserAuth()
+    if (!isSuperUser) throw ForbiddenError()
+
+    const { teacherInvoiceId } = c.requestInfo().body
+
+    $app.runInTransaction((txDao) => {
+        // remove teacher invoice id from class logs
+        txDao.db()
+            .newQuery(`
+                UPDATE classLogs 
+                SET teacherInvoiceId = ''
+                WHERE teacherInvoiceId = {:teacherInvoiceId}
+            `)
+            .bind({
+                teacherInvoiceId
+            })
+            .execute()
+
+        // delete teacher invoice
+        const record = txDao.findRecordById("teacherInvoices", teacherInvoiceId)
+        txDao.delete(record)
+    })
+
+    return c.json(200)
+})
