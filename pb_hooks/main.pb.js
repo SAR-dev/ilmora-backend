@@ -1177,8 +1177,8 @@ routerAdd("POST", "/api/t/class-logs/{id}/package", (c) => {
                 COALESCE (ti.id, '') AS teacherInvoiceId,
                 cl.dailyClassPackageId
             FROM classLogs cl 
-            LEFT JOIN invoices si ON si.id = cl.studentInvoiceId 
-            LEFT JOIN invoices ti ON ti.id = cl.teacherInvoiceId 
+            LEFT JOIN studentInvoices si ON si.id = cl.studentInvoiceId 
+            LEFT JOIN teacherInvoices ti ON ti.id = cl.teacherInvoiceId 
             WHERE cl.id = {:id}   
         `)
         .bind({
