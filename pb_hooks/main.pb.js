@@ -1005,18 +1005,22 @@ routerAdd("GET", "/api/t/class-logs/{id}", (c) => {
         packageTitle: '',
         classMins: '',
         teachersPrice: '',
-        classLink: ''
+        classLink: '',
+        studentUserId: '',
+        teacherUserId: ''
     });
 
     $app.db()
         .newQuery(`
             SELECT DISTINCT
                 cl.id,
+                su.id AS studentUserId,
                 su.name AS studentName ,
                 su.avatar AS studentAvatar ,
                 su.whatsAppNo AS studentWhatsAppNo ,
                 su.location AS studentLocation ,
                 su.utcOffset AS studentOffset ,
+                tu.id AS teacherUserId,
                 tu.name AS teacherName ,
                 tu.avatar AS teacherAvatar ,
                 tu.whatsAppNo AS teacherWhatsAppNo ,
