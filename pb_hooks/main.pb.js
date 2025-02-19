@@ -1580,6 +1580,18 @@ routerAdd("GET", "/invoice/student/{studentInvoiceId}/{studentId}/html", (c) => 
         })
         .one(studentData)
 
+    const emptyClassData = {
+        id: '',
+        startedAt: '',
+        finishedAt: '',
+        teacherName: '',
+        teacherEmail: '',
+        teacherWhatsAppNo: '',
+        packageName: '',
+        packageClassMins: '',
+        studentsPrice: ''
+    }
+
     const classData = arrayOf(new DynamicModel({
         id: '',
         startedAt: '',
@@ -1696,12 +1708,11 @@ routerAdd("GET", "/invoice/student/{studentInvoiceId}/{studentId}/html", (c) => 
     ).render({
         ...studentData,
         invoiceDate: formatDate(invoiceDate.created),
-        classLogs: classData.map(e => { return { ...e } }),
+        classLogs: classData.length > 0 ? classData.map(e => { return { ...e } }) : [{ ...emptyClassData }],
         classPrice: classData.map(e => Number(e.studentsPrice)).reduce((b, a) => b + a, 0),
         duePrice: Number(dueData.duePrice) - Number(paidData.paidPrice),
         totalPrice: classData.map(e => Number(e.studentsPrice)).reduce((b, a) => b + a, 0) + Number(dueData.duePrice) - Number(paidData.paidPrice)
     })
 
     return c.html(200, html)
-
 })
