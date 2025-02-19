@@ -1585,7 +1585,6 @@ routerAdd("GET", "/invoice/student/{studentInvoiceId}/{studentId}/html", (c) => 
         startedAt: '',
         finishedAt: '',
         teacherName: '',
-        teacherEmail: '',
         teacherWhatsAppNo: '',
         packageName: '',
         packageClassMins: '',
@@ -1597,7 +1596,6 @@ routerAdd("GET", "/invoice/student/{studentInvoiceId}/{studentId}/html", (c) => 
         startedAt: '',
         finishedAt: '',
         teacherName: '',
-        teacherEmail: '',
         teacherWhatsAppNo: '',
         packageName: '',
         packageClassMins: '',
@@ -1712,6 +1710,170 @@ routerAdd("GET", "/invoice/student/{studentInvoiceId}/{studentId}/html", (c) => 
         classPrice: classData.map(e => Number(e.studentsPrice)).reduce((b, a) => b + a, 0),
         duePrice: Number(dueData.duePrice) - Number(paidData.paidPrice),
         totalPrice: classData.map(e => Number(e.studentsPrice)).reduce((b, a) => b + a, 0) + Number(dueData.duePrice) - Number(paidData.paidPrice)
+    })
+
+    return c.html(200, html)
+})
+
+routerAdd("GET", "/invoice/teacher/{teacherInvoiceId}/{teacherId}/html", (c) => {
+    const teacherInvoiceId = c.request.pathValue("teacherInvoiceId")
+    const teacherId = c.request.pathValue("teacherId")
+
+    const teacherData = new DynamicModel({
+        userId: '',
+        teacherId: '',
+        name: '',
+        email: '',
+        whatsAppNo: ''
+    })
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                u.id AS userId ,
+                t.id AS teacherId ,
+                u.name ,
+                u.email ,
+                u.whatsAppNo 
+            FROM teachers t 
+            JOIN users u ON t.userId = u.id 
+            WHERE t.id = {:teacherId}
+        `)
+        .bind({
+            teacherId
+        })
+        .one(teacherData)
+
+    const emptyClassData = {
+        id: '',
+        startedAt: '',
+        finishedAt: '',
+        studentName: '',
+        studentWhatsAppNo: '',
+        packageName: '',
+        packageClassMins: '',
+        teachersPrice: ''
+    }
+
+    const classData = arrayOf(new DynamicModel({
+        id: '',
+        startedAt: '',
+        finishedAt: '',
+        studentName: '',
+        studentWhatsAppNo: '',
+        packageName: '',
+        packageClassMins: '',
+        teachersPrice: ''
+    }))
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                cl.id ,
+                cl.startedAt ,
+                cl.finishedAt ,
+                su.name AS studentName ,
+                su.whatsAppNo AS studentWhatsAppNo ,
+                dcp.title AS packageName ,
+                dcp.classMins AS packageClassMins ,
+                cl.teachersPrice 
+            FROM teachers t 
+            JOIN users tu ON tu.id = t.userId 
+            JOIN classLogs cl ON cl.teacherId = t.id 
+            JOIN teacherInvoices ti ON ti.id = cl.teacherInvoiceId 
+            JOIN dailyClassPackages dcp ON dcp.id = cl.dailyClassPackageId 
+            JOIN students s ON s.id = cl.studentId
+            JOIN users su ON s.userId = su.id 
+            WHERE ti.id = {:teacherInvoiceId}
+            AND t.id = {:teacherId}
+        `)
+        .bind({
+            teacherInvoiceId,
+            teacherId
+        })
+        .all(classData)
+
+    const dueData = new DynamicModel({
+        duePrice: ''
+    })
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                COALESCE (sum(cl.teachersPrice), 0) AS duePrice
+            FROM teachers t 
+            JOIN classLogs cl ON cl.teacherId = t.id 
+            JOIN teacherInvoices ti ON ti.id = cl.teacherInvoiceId 
+            WHERE ti.created <= (SELECT created FROM teacherInvoices WHERE id = {:teacherInvoiceId})
+            AND t.id = {:teacherId}
+            AND ti.id != {:teacherInvoiceId}
+        `)
+        .bind({
+            teacherInvoiceId,
+            teacherId
+        })
+        .one(dueData)
+
+    const paidData = new DynamicModel({
+        paidPrice: ''
+    })
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                COALESCE (sum(tb.paidAmount), 0) AS paidPrice
+            FROM teachers t 
+            JOIN teacherBalances tb ON tb.teacherId = t.id 
+            WHERE tb.created <= (SELECT created FROM teacherInvoices WHERE id = {:teacherInvoiceId})
+            AND t.id = {:teacherId}
+        `)
+        .bind({
+            teacherInvoiceId,
+            teacherId
+        })
+        .one(paidData)
+
+    const invoiceDate = new DynamicModel({
+        created: ''
+    })
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                created
+            FROM teacherInvoices WHERE id = {:teacherInvoiceId}
+        `)
+        .bind({
+            teacherInvoiceId
+        })
+        .one(invoiceDate)
+
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+
+        // Array of month names
+        const monthNames = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        ];
+
+        // Extract day, month name, and year
+        const day = String(date.getDate()).padStart(2, '0'); // Ensure 2 digits
+        const month = monthNames[date.getMonth()]; // Get month name
+        const year = date.getFullYear();
+
+        return `${day} ${month} ${year}`;
+    }
+
+    const html = $template.loadFiles(
+        `${__hooks}/views/teacher-receipt.html`
+    ).render({
+        ...teacherData,
+        invoiceDate: formatDate(invoiceDate.created),
+        classLogs: classData.length > 0 ? classData.map(e => { return { ...e } }) : [{ ...emptyClassData }],
+        classPrice: classData.map(e => Number(e.teachersPrice)).reduce((b, a) => b + a, 0),
+        duePrice: Number(dueData.duePrice) - Number(paidData.paidPrice),
+        totalPrice: classData.map(e => Number(e.teachersPrice)).reduce((b, a) => b + a, 0) + Number(dueData.duePrice) - Number(paidData.paidPrice)
     })
 
     return c.html(200, html)
