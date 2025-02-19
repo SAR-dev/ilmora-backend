@@ -199,6 +199,7 @@ export type StudentBalancesRecord = {
 
 export type StudentExtraPaymentViewRecord<TinvoicedAt = unknown, TtotalStudentsPrice = unknown> = {
 	avatar?: string
+	createdAt?: IsoDateString
 	email: string
 	id: string
 	invoicedAt?: null | TinvoicedAt
@@ -219,6 +220,7 @@ export type StudentExtraPaymentViewRecord<TinvoicedAt = unknown, TtotalStudentsP
 
 export type StudentInvoicePaymentViewRecord<TtotalStudentsPrice = unknown> = {
 	avatar?: string
+	createdAt?: IsoDateString
 	email: string
 	id: string
 	invoicedAt?: IsoDateString
@@ -263,6 +265,7 @@ export type TeacherBalancesRecord = {
 
 export type TeacherExtraPaymentViewRecord<TinvoicedAt = unknown, TtotalTeachersPrice = unknown> = {
 	avatar?: string
+	createdAt?: IsoDateString
 	email: string
 	id: string
 	invoicedAt?: null | TinvoicedAt
@@ -283,6 +286,7 @@ export type TeacherExtraPaymentViewRecord<TinvoicedAt = unknown, TtotalTeachersP
 
 export type TeacherInvoicePaymentViewRecord<TtotalTeachersPrice = unknown> = {
 	avatar?: string
+	createdAt?: IsoDateString
 	email: string
 	id: string
 	invoicedAt?: IsoDateString

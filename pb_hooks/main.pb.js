@@ -284,8 +284,8 @@ routerAdd("POST", "/api/t/routine", (c) => {
             const foundIndex = weekdays.findIndex(e => e.dayOfWeek == dayOfWeek)
             if (foundIndex != -1) {
                 const adjustedDate = new Date(start);
-                const hours = Math.floor((weekdays[foundIndex].hh * 60 + weekdays[foundIndex].mm + totalOffsetMinutes)/60)
-                const minutes = (weekdays[foundIndex].hh * 60 + weekdays[foundIndex].mm + totalOffsetMinutes)%60
+                const hours = Math.floor((weekdays[foundIndex].hh * 60 + weekdays[foundIndex].mm + totalOffsetMinutes) / 60)
+                const minutes = (weekdays[foundIndex].hh * 60 + weekdays[foundIndex].mm + totalOffsetMinutes) % 60
                 adjustedDate.setHours(hours)
                 adjustedDate.setMinutes(minutes);
                 result.push(adjustedDate.toISOString().replace("T", " "));
@@ -423,8 +423,8 @@ routerAdd("POST", "/api/t/class-logs", (c) => {
 
         logs.forEach(log => {
             const adjustedDate = new Date(log.date)
-            const hours = Math.floor((Number(log.time.split(":")[0]) * 60 + Number(log.time.split(":")[1]) + totalOffsetMinutes)/60)
-            const minutes = (Number(log.time.split(":")[0]) * 60 + Number(log.time.split(":")[1]) + totalOffsetMinutes)%60
+            const hours = Math.floor((Number(log.time.split(":")[0]) * 60 + Number(log.time.split(":")[1]) + totalOffsetMinutes) / 60)
+            const minutes = (Number(log.time.split(":")[0]) * 60 + Number(log.time.split(":")[1]) + totalOffsetMinutes) % 60
             adjustedDate.setHours(hours)
             adjustedDate.setMinutes(minutes);
             result.push(adjustedDate.toISOString().replace("T", " "));
@@ -1263,7 +1263,6 @@ routerAdd("GET", "/api/s/notices", (c) => {
     return c.json(200, noticeInfo)
 })
 
-
 // ======================================================================
 // ADMIN API
 // ======================================================================
@@ -1426,7 +1425,7 @@ routerAdd("POST", "/api/a/student-invoices", (c) => {
     if (!isSuperUser) throw ForbiddenError()
 
     const { studentIds } = c.requestInfo().body
-    if(studentIds.length == 0) return;
+    if (studentIds.length == 0) return;
 
     $app.runInTransaction((txDao) => {
         // create student invoice
@@ -1462,7 +1461,7 @@ routerAdd("POST", "/api/a/teacher-invoices", (c) => {
     if (!isSuperUser) throw ForbiddenError()
 
     const { teacherIds } = c.requestInfo().body
-    if(teacherIds.length == 0) return;
+    if (teacherIds.length == 0) return;
 
     $app.runInTransaction((txDao) => {
         // create student invoice
@@ -1498,7 +1497,7 @@ routerAdd("POST", "/api/a/student-invoices-rollback", (c) => {
     if (!isSuperUser) throw ForbiddenError()
 
     const { studentInvoiceId } = c.requestInfo().body
-    
+
     $app.runInTransaction((txDao) => {
         // remove student invoice id from class logs
         txDao.db()
@@ -1548,7 +1547,161 @@ routerAdd("POST", "/api/a/teacher-invoices-rollback", (c) => {
     return c.json(200)
 })
 
-// get student invoice list
-// get teacher invoice list
-// get student invoice details
-// get teacher invoice details
+// ======================================================================
+// PUBLIC INVOICE API
+// ======================================================================
+
+routerAdd("GET", "/invoice/student/{studentInvoiceId}/{studentId}/html", (c) => {
+    const studentInvoiceId = c.request.pathValue("studentInvoiceId")
+    const studentId = c.request.pathValue("studentId")
+
+    const studentData = new DynamicModel({
+        userId: '',
+        studentId: '',
+        name: '',
+        email: '',
+        whatsAppNo: ''
+    })
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                u.id AS userId ,
+                s.id AS studentId ,
+                u.name ,
+                u.email ,
+                u.whatsAppNo 
+            FROM students s 
+            JOIN users u ON s.userId = u.id 
+            WHERE s.id = {:studentId}
+        `)
+        .bind({
+            studentId
+        })
+        .one(studentData)
+
+    const classData = arrayOf(new DynamicModel({
+        id: '',
+        startedAt: '',
+        finishedAt: '',
+        teacherName: '',
+        teacherEmail: '',
+        teacherWhatsAppNo: '',
+        packageName: '',
+        packageClassMins: '',
+        studentsPrice: ''
+    }))
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                cl.id ,
+                cl.startedAt ,
+                cl.finishedAt ,
+                tu.name AS teacherName ,
+                tu.whatsAppNo AS teacherWhatsAppNo ,
+                dcp.title AS packageName ,
+                dcp.classMins AS packageClassMins ,
+                cl.studentsPrice 
+            FROM students s 
+            JOIN users su ON s.userId = su.id 
+            JOIN classLogs cl ON cl.studentId = s.id 
+            JOIN studentInvoices si ON si.id = cl.studentInvoiceId 
+            JOIN dailyClassPackages dcp ON dcp.id = cl.dailyClassPackageId 
+            JOIN teachers t ON t.id = cl.teacherId 
+            JOIN users tu ON tu.id = t.userId 
+            WHERE si.id = {:studentInvoiceId}
+            AND s.id = {:studentId}
+        `)
+        .bind({
+            studentInvoiceId,
+            studentId
+        })
+        .all(classData)
+
+    const dueData = new DynamicModel({
+        duePrice: ''
+    })
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                COALESCE (sum(cl.studentsPrice), 0) AS duePrice
+            FROM students s 
+            JOIN classLogs cl ON cl.studentId = s.id 
+            JOIN studentInvoices si ON si.id = cl.studentInvoiceId 
+            WHERE si.created <= (SELECT created FROM studentInvoices WHERE id = {:studentInvoiceId})
+            AND s.id = {:studentId}
+            AND si.id != {:studentInvoiceId}
+        `)
+        .bind({
+            studentInvoiceId,
+            studentId
+        })
+        .one(dueData)
+
+    const paidData = new DynamicModel({
+        paidPrice: ''
+    })
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                COALESCE (sum(sb.paidAmount), 0) AS paidPrice
+            FROM students s 
+            JOIN studentBalances sb ON sb.studentId = s.id 
+            WHERE sb.created <= (SELECT created FROM studentInvoices WHERE id = {:studentInvoiceId})
+            AND s.id = {:studentId}
+        `)
+        .bind({
+            studentInvoiceId,
+            studentId
+        })
+        .one(paidData)
+
+    const invoiceDate = new DynamicModel({
+        created: ''
+    })
+
+    $app.db()
+        .newQuery(`
+            SELECT 
+                created
+            FROM studentInvoices WHERE id = {:studentInvoiceId}
+        `)
+        .bind({
+            studentInvoiceId
+        })
+        .one(invoiceDate)
+
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+
+        // Array of month names
+        const monthNames = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        ];
+
+        // Extract day, month name, and year
+        const day = String(date.getDate()).padStart(2, '0'); // Ensure 2 digits
+        const month = monthNames[date.getMonth()]; // Get month name
+        const year = date.getFullYear();
+
+        return `${day} ${month} ${year}`;
+    }
+
+    const html = $template.loadFiles(
+        `${__hooks}/views/student-receipt.html`
+    ).render({
+        ...studentData,
+        invoiceDate: formatDate(invoiceDate.created),
+        classLogs: classData.map(e => { return { ...e } }),
+        classPrice: classData.map(e => Number(e.studentsPrice)).reduce((b, a) => b + a, 0),
+        duePrice: Number(dueData.duePrice) - Number(paidData.paidPrice),
+        totalPrice: classData.map(e => Number(e.studentsPrice)).reduce((b, a) => b + a, 0) + Number(dueData.duePrice) - Number(paidData.paidPrice)
+    })
+
+    return c.html(200, html)
+
+})
