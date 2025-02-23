@@ -22,6 +22,44 @@ onRecordAfterUpdateSuccess((e) => {
     e.next()
 }, "teacherStudentRel")
 
+// modify whats app number
+onRecordCreate((e) => {
+    let wh = e.record.get("whatsAppNo");
+
+    if (wh) {
+        // Remove all non-digit characters except +
+        wh = wh.replace(/[^\d+]/g, "");
+
+        // Ensure it starts with +
+        if (!wh.startsWith("+")) {
+            wh = "+" + wh;
+        }
+
+        e.record.set("whatsAppNo", wh);
+    }
+
+    e.next();
+}, "users");
+
+// modify whats app number
+onRecordUpdate((e) => {
+    let wh = e.record.get("whatsAppNo");
+
+    if (wh) {
+        // Remove all non-digit characters except +
+        wh = wh.replace(/[^\d+]/g, "");
+
+        // Ensure it starts with +
+        if (!wh.startsWith("+")) {
+            wh = "+" + wh;
+        }
+
+        e.record.set("whatsAppNo", wh);
+    }
+
+    e.next();
+}, "users");
+
 // remove mismatched / expired class logs every 1 minute
 cronAdd("remove-expired-teacher-student-class-logs", "*/1 * * * *", () => {
     $app.db()
@@ -1266,6 +1304,75 @@ routerAdd("GET", "/api/s/notices", (c) => {
 // ======================================================================
 // ADMIN API
 // ======================================================================
+
+// create student
+routerAdd("POST", "/api/a/student", (c) => {
+    const isSuperUser = c.hasSuperuserAuth()
+    if (!isSuperUser) throw ForbiddenError()
+
+    const { email, name, password, whatsAppNo, utcOffset, location, teacherId, classLink, dailyClassPackageId, dailyClassTeachersPrice, dailyClassStudentsPrice } = c.requestInfo().body
+
+    $app.runInTransaction((txDao) => {
+        const userCollection = txDao.findCollectionByNameOrId("users")
+        const userRecord = new Record(userCollection)
+        userRecord.setPassword(password)
+        userRecord.set("email", email)
+        userRecord.set("name", name)
+        userRecord.set("whatsAppNo", whatsAppNo)
+        userRecord.set("utcOffset", utcOffset)
+        userRecord.set("location", location)
+        txDao.save(userRecord)
+
+        const userId = userRecord.get("id")
+        const studentCollection = txDao.findCollectionByNameOrId("students")
+        const studentRecord = new Record(studentCollection)
+        studentRecord.set("userId", userId)
+        txDao.save(studentRecord)
+
+        if(teacherId.length > 0){
+            const studentId = studentRecord.get("id")
+            const teacherStudentRelCollection = txDao.findCollectionByNameOrId("teacherStudentRel")
+            const teacherStudentRelRecord = new Record(teacherStudentRelCollection)
+            teacherStudentRelRecord.set("studentId", studentId)
+            teacherStudentRelRecord.set("teacherId", teacherId)
+            teacherStudentRelRecord.set("classLink", classLink)
+            teacherStudentRelRecord.set("dailyClassPackageId", dailyClassPackageId)
+            teacherStudentRelRecord.set("dailyClassTeachersPrice", dailyClassTeachersPrice)
+            teacherStudentRelRecord.set("dailyClassStudentsPrice", dailyClassStudentsPrice)
+            txDao.save(teacherStudentRelRecord)
+        }
+    })
+
+    return c.json(200)    
+})
+
+// create student
+routerAdd("POST", "/api/a/teacher", (c) => {
+    const isSuperUser = c.hasSuperuserAuth()
+    if (!isSuperUser) throw ForbiddenError()
+
+    const { email, name, password, whatsAppNo, utcOffset, location} = c.requestInfo().body
+
+    $app.runInTransaction((txDao) => {
+        const userCollection = txDao.findCollectionByNameOrId("users")
+        const userRecord = new Record(userCollection)
+        userRecord.setPassword(password)
+        userRecord.set("email", email)
+        userRecord.set("name", name)
+        userRecord.set("whatsAppNo", whatsAppNo)
+        userRecord.set("utcOffset", utcOffset)
+        userRecord.set("location", location)
+        txDao.save(userRecord)
+
+        const userId = userRecord.get("id")
+        const teacherCollection = txDao.findCollectionByNameOrId("teachers")
+        const teacherRecord = new Record(teacherCollection)
+        teacherRecord.set("userId", userId)
+        txDao.save(teacherRecord)
+    })
+
+    return c.json(200)    
+})
 
 // get list of students with last invoice data
 routerAdd("GET", "/api/a/student-last-invoices", (c) => {
