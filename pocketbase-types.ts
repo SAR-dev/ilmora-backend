@@ -18,11 +18,13 @@ export enum Collections {
 	Routines = "routines",
 	StudentBalances = "studentBalances",
 	StudentExtraPaymentView = "studentExtraPaymentView",
+	StudentInvoiceMsg = "studentInvoiceMsg",
 	StudentInvoicePaymentView = "studentInvoicePaymentView",
 	StudentInvoices = "studentInvoices",
 	Students = "students",
 	TeacherBalances = "teacherBalances",
 	TeacherExtraPaymentView = "teacherExtraPaymentView",
+	TeacherInvoiceMsg = "teacherInvoiceMsg",
 	TeacherInvoicePaymentView = "teacherInvoicePaymentView",
 	TeacherInvoices = "teacherInvoices",
 	TeacherStudentRel = "teacherStudentRel",
@@ -197,13 +199,14 @@ export type StudentBalancesRecord = {
 	updated?: IsoDateString
 }
 
-export type StudentExtraPaymentViewRecord<TinvoicedAt = unknown, TtotalStudentsPrice = unknown> = {
+export type StudentExtraPaymentViewRecord<TinvoicedAt = unknown, TmessageSent = unknown, TtotalStudentsPrice = unknown> = {
 	avatar?: string
 	createdAt?: IsoDateString
 	email: string
 	id: string
 	invoicedAt?: null | TinvoicedAt
 	location?: string
+	messageSent?: null | TmessageSent
 	name: string
 	paidAmount?: number
 	paidAt?: IsoDateString
@@ -218,13 +221,22 @@ export type StudentExtraPaymentViewRecord<TinvoicedAt = unknown, TtotalStudentsP
 	whatsAppNo: string
 }
 
-export type StudentInvoicePaymentViewRecord<TtotalStudentsPrice = unknown> = {
+export type StudentInvoiceMsgRecord = {
+	created?: IsoDateString
+	id: string
+	studentId: RecordIdString
+	studentInvoiceId?: RecordIdString
+	updated?: IsoDateString
+}
+
+export type StudentInvoicePaymentViewRecord<TmessageSent = unknown, TtotalStudentsPrice = unknown> = {
 	avatar?: string
 	createdAt?: IsoDateString
 	email: string
 	id: string
 	invoicedAt?: IsoDateString
 	location?: string
+	messageSent?: null | TmessageSent
 	name: string
 	paidAmount?: number
 	paidAt?: IsoDateString
@@ -263,13 +275,14 @@ export type TeacherBalancesRecord = {
 	updated?: IsoDateString
 }
 
-export type TeacherExtraPaymentViewRecord<TinvoicedAt = unknown, TtotalTeachersPrice = unknown> = {
+export type TeacherExtraPaymentViewRecord<TinvoicedAt = unknown, TmessageSent = unknown, TtotalTeachersPrice = unknown> = {
 	avatar?: string
 	createdAt?: IsoDateString
 	email: string
 	id: string
 	invoicedAt?: null | TinvoicedAt
 	location?: string
+	messageSent?: null | TmessageSent
 	name: string
 	paidAmount?: number
 	paidAt?: IsoDateString
@@ -284,13 +297,22 @@ export type TeacherExtraPaymentViewRecord<TinvoicedAt = unknown, TtotalTeachersP
 	whatsAppNo: string
 }
 
-export type TeacherInvoicePaymentViewRecord<TtotalTeachersPrice = unknown> = {
+export type TeacherInvoiceMsgRecord = {
+	created?: IsoDateString
+	id: string
+	teacherId: RecordIdString
+	teacherInvoiceId?: RecordIdString
+	updated?: IsoDateString
+}
+
+export type TeacherInvoicePaymentViewRecord<TmessageSent = unknown, TtotalTeachersPrice = unknown> = {
 	avatar?: string
 	createdAt?: IsoDateString
 	email: string
 	id: string
 	invoicedAt?: IsoDateString
 	location?: string
+	messageSent?: null | TmessageSent
 	name: string
 	paidAmount?: number
 	paidAt?: IsoDateString
@@ -358,13 +380,15 @@ export type NoticesResponse<Texpand = unknown> = Required<NoticesRecord> & BaseS
 export type ResourcesResponse<Texpand = unknown> = Required<ResourcesRecord> & BaseSystemFields<Texpand>
 export type RoutinesResponse<Texpand = unknown> = Required<RoutinesRecord> & BaseSystemFields<Texpand>
 export type StudentBalancesResponse<Texpand = unknown> = Required<StudentBalancesRecord> & BaseSystemFields<Texpand>
-export type StudentExtraPaymentViewResponse<TinvoicedAt = unknown, TtotalStudentsPrice = unknown, Texpand = unknown> = Required<StudentExtraPaymentViewRecord<TinvoicedAt, TtotalStudentsPrice>> & BaseSystemFields<Texpand>
-export type StudentInvoicePaymentViewResponse<TtotalStudentsPrice = unknown, Texpand = unknown> = Required<StudentInvoicePaymentViewRecord<TtotalStudentsPrice>> & BaseSystemFields<Texpand>
+export type StudentExtraPaymentViewResponse<TinvoicedAt = unknown, TmessageSent = unknown, TtotalStudentsPrice = unknown, Texpand = unknown> = Required<StudentExtraPaymentViewRecord<TinvoicedAt, TmessageSent, TtotalStudentsPrice>> & BaseSystemFields<Texpand>
+export type StudentInvoiceMsgResponse<Texpand = unknown> = Required<StudentInvoiceMsgRecord> & BaseSystemFields<Texpand>
+export type StudentInvoicePaymentViewResponse<TmessageSent = unknown, TtotalStudentsPrice = unknown, Texpand = unknown> = Required<StudentInvoicePaymentViewRecord<TmessageSent, TtotalStudentsPrice>> & BaseSystemFields<Texpand>
 export type StudentInvoicesResponse<Texpand = unknown> = Required<StudentInvoicesRecord> & BaseSystemFields<Texpand>
 export type StudentsResponse<Texpand = unknown> = Required<StudentsRecord> & BaseSystemFields<Texpand>
 export type TeacherBalancesResponse<Texpand = unknown> = Required<TeacherBalancesRecord> & BaseSystemFields<Texpand>
-export type TeacherExtraPaymentViewResponse<TinvoicedAt = unknown, TtotalTeachersPrice = unknown, Texpand = unknown> = Required<TeacherExtraPaymentViewRecord<TinvoicedAt, TtotalTeachersPrice>> & BaseSystemFields<Texpand>
-export type TeacherInvoicePaymentViewResponse<TtotalTeachersPrice = unknown, Texpand = unknown> = Required<TeacherInvoicePaymentViewRecord<TtotalTeachersPrice>> & BaseSystemFields<Texpand>
+export type TeacherExtraPaymentViewResponse<TinvoicedAt = unknown, TmessageSent = unknown, TtotalTeachersPrice = unknown, Texpand = unknown> = Required<TeacherExtraPaymentViewRecord<TinvoicedAt, TmessageSent, TtotalTeachersPrice>> & BaseSystemFields<Texpand>
+export type TeacherInvoiceMsgResponse<Texpand = unknown> = Required<TeacherInvoiceMsgRecord> & BaseSystemFields<Texpand>
+export type TeacherInvoicePaymentViewResponse<TmessageSent = unknown, TtotalTeachersPrice = unknown, Texpand = unknown> = Required<TeacherInvoicePaymentViewRecord<TmessageSent, TtotalTeachersPrice>> & BaseSystemFields<Texpand>
 export type TeacherInvoicesResponse<Texpand = unknown> = Required<TeacherInvoicesRecord> & BaseSystemFields<Texpand>
 export type TeacherStudentRelResponse<Texpand = unknown> = Required<TeacherStudentRelRecord> & BaseSystemFields<Texpand>
 export type TeachersResponse<Texpand = unknown> = Required<TeachersRecord> & BaseSystemFields<Texpand>
@@ -385,11 +409,13 @@ export type CollectionRecords = {
 	routines: RoutinesRecord
 	studentBalances: StudentBalancesRecord
 	studentExtraPaymentView: StudentExtraPaymentViewRecord
+	studentInvoiceMsg: StudentInvoiceMsgRecord
 	studentInvoicePaymentView: StudentInvoicePaymentViewRecord
 	studentInvoices: StudentInvoicesRecord
 	students: StudentsRecord
 	teacherBalances: TeacherBalancesRecord
 	teacherExtraPaymentView: TeacherExtraPaymentViewRecord
+	teacherInvoiceMsg: TeacherInvoiceMsgRecord
 	teacherInvoicePaymentView: TeacherInvoicePaymentViewRecord
 	teacherInvoices: TeacherInvoicesRecord
 	teacherStudentRel: TeacherStudentRelRecord
@@ -410,11 +436,13 @@ export type CollectionResponses = {
 	routines: RoutinesResponse
 	studentBalances: StudentBalancesResponse
 	studentExtraPaymentView: StudentExtraPaymentViewResponse
+	studentInvoiceMsg: StudentInvoiceMsgResponse
 	studentInvoicePaymentView: StudentInvoicePaymentViewResponse
 	studentInvoices: StudentInvoicesResponse
 	students: StudentsResponse
 	teacherBalances: TeacherBalancesResponse
 	teacherExtraPaymentView: TeacherExtraPaymentViewResponse
+	teacherInvoiceMsg: TeacherInvoiceMsgResponse
 	teacherInvoicePaymentView: TeacherInvoicePaymentViewResponse
 	teacherInvoices: TeacherInvoicesResponse
 	teacherStudentRel: TeacherStudentRelResponse
@@ -438,11 +466,13 @@ export type TypedPocketBase = PocketBase & {
 	collection(idOrName: 'routines'): RecordService<RoutinesResponse>
 	collection(idOrName: 'studentBalances'): RecordService<StudentBalancesResponse>
 	collection(idOrName: 'studentExtraPaymentView'): RecordService<StudentExtraPaymentViewResponse>
+	collection(idOrName: 'studentInvoiceMsg'): RecordService<StudentInvoiceMsgResponse>
 	collection(idOrName: 'studentInvoicePaymentView'): RecordService<StudentInvoicePaymentViewResponse>
 	collection(idOrName: 'studentInvoices'): RecordService<StudentInvoicesResponse>
 	collection(idOrName: 'students'): RecordService<StudentsResponse>
 	collection(idOrName: 'teacherBalances'): RecordService<TeacherBalancesResponse>
 	collection(idOrName: 'teacherExtraPaymentView'): RecordService<TeacherExtraPaymentViewResponse>
+	collection(idOrName: 'teacherInvoiceMsg'): RecordService<TeacherInvoiceMsgResponse>
 	collection(idOrName: 'teacherInvoicePaymentView'): RecordService<TeacherInvoicePaymentViewResponse>
 	collection(idOrName: 'teacherInvoices'): RecordService<TeacherInvoicesResponse>
 	collection(idOrName: 'teacherStudentRel'): RecordService<TeacherStudentRelResponse>
