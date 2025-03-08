@@ -179,7 +179,7 @@ export type RoutinesRecord = {
 	monTime?: string
 	satTime?: string
 	startDate: string
-	sunTIme?: string
+	sunTime?: string
 	teacherStudentRelId: RecordIdString
 	thuTime?: string
 	tueTime?: string

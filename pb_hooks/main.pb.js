@@ -281,6 +281,7 @@ routerAdd("POST", "/api/t/routine", (c) => {
 
         // create weekdays data
         const weekdays = []
+        
         if (sunTime.trim().length > 0) weekdays.push({
             dayOfWeek: 0,
             hh: Number(sunTime.split(":")[0]),
@@ -353,6 +354,7 @@ routerAdd("POST", "/api/t/routine", (c) => {
         routineRecord.set("startDate", startDate)
         routineRecord.set("endDate", endDate)
         routineRecord.set("utcOffset", utcOffset)
+        
         txDao.save(routineRecord)
 
         // delete incomplete class logs
