@@ -1025,11 +1025,13 @@ routerAdd("GET", "/api/t/class-logs/{id}", (c) => {
 
     const classLogInfo = new DynamicModel({
         id: '',
+        studentUserId: '',
         studentName: '',
         studentAvatar: '',
         studentWhatsAppNo: '',
         studentLocation: '',
         studentOffset: '',
+        teacherUserId: '',
         teacherName: '',
         teacherAvatar: '',
         teacherWhatsAppNo: '',
@@ -1044,8 +1046,7 @@ routerAdd("GET", "/api/t/class-logs/{id}", (c) => {
         classMins: '',
         teachersPrice: '',
         classLink: '',
-        studentUserId: '',
-        teacherUserId: ''
+        disableClass: ''
     });
 
     $app.db()
@@ -1072,7 +1073,8 @@ routerAdd("GET", "/api/t/class-logs/{id}", (c) => {
                 dcp.title AS packageTitle ,
                 dcp.classMins ,
                 cl.teachersPrice ,
-                COALESCE (tsr.classLink, '') AS classLink
+                COALESCE (tsr.classLink, '') AS classLink,
+                s.disableClass
             FROM classLogs cl 
             JOIN teachers t ON cl.teacherId = t.id 
             JOIN users tu ON tu.id = t.userId 

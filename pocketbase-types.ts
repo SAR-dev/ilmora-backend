@@ -225,7 +225,7 @@ export type StudentInvoiceMsgRecord = {
 	created?: IsoDateString
 	id: string
 	studentId: RecordIdString
-	studentInvoiceId?: RecordIdString
+	studentInvoiceId: RecordIdString
 	updated?: IsoDateString
 }
 
@@ -259,6 +259,7 @@ export type StudentInvoicesRecord = {
 
 export type StudentsRecord = {
 	created?: IsoDateString
+	disableClass?: boolean
 	id: string
 	updated?: IsoDateString
 	userId: RecordIdString
@@ -301,7 +302,7 @@ export type TeacherInvoiceMsgRecord = {
 	created?: IsoDateString
 	id: string
 	teacherId: RecordIdString
-	teacherInvoiceId?: RecordIdString
+	teacherInvoiceId: RecordIdString
 	updated?: IsoDateString
 }
 
